@@ -1,0 +1,35 @@
+# Виртуальное окружение
+.venv/
+venv/
+env/
+
+# Кэш Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# IDE / редакторы
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ОС
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Локальные настройки и секреты
+.env
+.env.*
+!.env.example
+
+# Отчёты / временные файлы
+*.log
+*.tmp
+.coverage
+htmlcov/
