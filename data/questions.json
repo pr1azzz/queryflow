@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "text": "Как работает виртуальное окружение в Python?",
+    "category_id": 1,
+    "author_id": 1,
+    "is_closed": false,
+    "created_on": "2026-09-19"
+  },
+  {
+    "id": 2,
+    "text": "Чем отличается модель Django от обычного класса?",
+    "category_id": 2,
+    "author_id": 3,
+    "is_closed": false,
+    "created_on": "2026-09-18"
+  }
+]

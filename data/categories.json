@@ -1,0 +1,5 @@
+[
+  {"id": 1, "name": "Python", "is_active": true},
+  {"id": 2, "name": "Django", "is_active": true},
+  {"id": 3, "name": "Архив", "is_active": false}
+]
