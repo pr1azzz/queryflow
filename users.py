@@ -3,6 +3,17 @@
 from __future__ import annotations
 
 
+ALLOWED_ROLES = frozenset({"user", "moderator"})
+
+
+def normalize_role(role: str) -> str | None:
+    """Вернуть нормализованную роль или None, если роль недопустима."""
+    cleaned = role.strip().lower()
+    if cleaned in ALLOWED_ROLES:
+        return cleaned
+    return None
+
+
 def add_user(
     users: dict[int, dict],
     name: str,
@@ -10,10 +21,11 @@ def add_user(
 ) -> dict:
     """Добавить пользователя."""
     new_id = max(users.keys(), default=0) + 1
+    normalized = normalize_role(role) or "user"
     user = {
         "id": new_id,
         "name": name.strip(),
-        "role": role.strip() or "user",
+        "role": normalized,
     }
     users[new_id] = user
     return user

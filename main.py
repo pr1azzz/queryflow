@@ -38,8 +38,21 @@ from storage import (
     save_questions,
     save_users,
 )
-from users import add_user, get_user_name
-from utils import input_int, input_nonempty
+from users import add_user, get_user_name, normalize_role
+from utils import configure_console, input_choice, input_int, input_nonempty
+
+
+def show_question_ids(questions: list[dict]) -> None:
+    """Краткий список id вопросов — чтобы не путать с id категорий."""
+    if not questions:
+        print("Вопросы отсутствуют.")
+        return
+    print("Доступные вопросы (id):")
+    for item in sort_questions_by_date(questions):
+        preview = item["text"].strip()
+        if len(preview) > 40:
+            preview = preview[:37] + "..."
+        print(f"  {item['id']}: {preview}")
 
 
 def show_categories(categories: dict[int, dict]) -> None:
@@ -115,10 +128,11 @@ def action_add_category(categories: dict[int, dict]) -> None:
 
 
 def action_find_category(categories: dict[int, dict]) -> None:
-    query = input_nonempty("Подстрока поиска: ")
+    query = input_nonempty("Поиск (название или id): ")
     found = find_category(categories, query)
     if not found:
-        print("Ничего не найдено.")
+        print("Ничего не найдено. Подсказка: ищите по названию "
+              "(например «Python») или по id (например «4»).")
         return
     for item in found:
         print(f"{item['id']}: {item['name']}")
@@ -155,10 +169,11 @@ def action_add_answer(
     answers: list[dict],
     users: dict[int, dict],
 ) -> None:
+    show_question_ids(questions)
     question_id = input_int("ID вопроса: ")
     question = get_question_by_id(questions, question_id)
     if question is None:
-        print("Вопрос не найден.")
+        print("Вопрос не найден. Сначала посмотрите список (пункт 5).")
         return
     if question["is_closed"]:
         print("Нельзя ответить: вопрос закрыт.")
@@ -177,10 +192,11 @@ def action_check_status(
     questions: list[dict],
     answers: list[dict],
 ) -> None:
+    show_question_ids(questions)
     question_id = input_int("ID вопроса: ")
     question = get_question_by_id(questions, question_id)
     if question is None:
-        print("Вопрос не найден.")
+        print("Вопрос не найден. Сначала посмотрите список (пункт 5).")
         return
     status = get_question_status(
         question["is_closed"],
@@ -213,17 +229,23 @@ def action_find_questions(
 
 
 def action_close_question(questions: list[dict]) -> None:
+    show_question_ids(questions)
     question_id = input_int("ID вопроса: ")
     if close_question(questions, question_id):
         save_questions(questions)
         print("Вопрос закрыт.")
     else:
-        print("Вопрос не найден.")
+        print("Вопрос не найден. Сначала посмотрите список (пункт 5).")
 
 
 def action_add_user(users: dict[int, dict]) -> None:
     name = input_nonempty("Имя пользователя: ")
-    role = input_nonempty("Роль (user/moderator): ")
+    while True:
+        role_raw = input_nonempty("Роль (user/moderator): ")
+        role = normalize_role(role_raw)
+        if role is not None:
+            break
+        print("Ошибка: роль должна быть user или moderator.")
     user = add_user(users, name, role)
     save_users(users)
     print(f"Пользователь добавлен (id={user['id']}).")
@@ -258,6 +280,7 @@ def print_menu() -> None:
 
 def main() -> None:
     """Точка запуска: цикл меню и вызов функций проекта."""
+    configure_console()
     categories = load_categories()
     users = load_users()
     questions = load_questions()
@@ -265,7 +288,9 @@ def main() -> None:
 
     while True:
         print_menu()
-        choice = input_nonempty("Выберите действие: ")
+        choice = input_choice("Выберите действие: ")
+        if not choice:
+            continue
         if choice == "0":
             print("До свидания!")
             break
@@ -294,14 +319,18 @@ def main() -> None:
         elif choice == "10":
             action_close_question(questions)
         elif choice == "11":
+            show_question_ids(questions)
             qid = input_int("ID вопроса: ")
-            show_answers_for_question(answers, users, qid)
+            if get_question_by_id(questions, qid) is None:
+                print("Вопрос не найден. Сначала посмотрите список (пункт 5).")
+            else:
+                show_answers_for_question(answers, users, qid)
         elif choice == "12":
             action_add_answer(questions, answers, users)
         elif choice == "13":
             action_add_user(users)
         else:
-            print("Неизвестный пункт меню.")
+            print("Неизвестный пункт меню. Введите номер от 0 до 13.")
 
 
 if __name__ == "__main__":

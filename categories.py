@@ -23,10 +23,20 @@ def find_category(
     categories: dict[int, dict],
     query: str,
 ) -> list[dict]:
-    """Найти категории по подстроке названия."""
+    """Найти категории по подстроке названия или точному id."""
     needle = query.strip().lower()
+    if not needle:
+        return []
     result = []
+    seen: set[int] = set()
+    if needle.isdigit():
+        by_id = categories.get(int(needle))
+        if by_id is not None:
+            result.append(by_id)
+            seen.add(by_id["id"])
     for category in categories.values():
+        if category["id"] in seen:
+            continue
         if needle in category["name"].lower():
             result.append(category)
     return result

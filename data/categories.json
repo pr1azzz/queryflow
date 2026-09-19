@@ -1,5 +1,32 @@
 [
-  {"id": 1, "name": "Python", "is_active": true},
-  {"id": 2, "name": "Django", "is_active": true},
-  {"id": 3, "name": "Архив", "is_active": false}
+  {
+    "id": 1,
+    "name": "Python",
+    "is_active": true
+  },
+  {
+    "id": 2,
+    "name": "Django",
+    "is_active": true
+  },
+  {
+    "id": 3,
+    "name": "Архив",
+    "is_active": false
+  },
+  {
+    "id": 4,
+    "name": "Помощь по Фреймворкам",
+    "is_active": true
+  },
+  {
+    "id": 5,
+    "name": "1",
+    "is_active": true
+  },
+  {
+    "id": 6,
+    "name": "1",
+    "is_active": true
+  }
 ]

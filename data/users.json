@@ -1,5 +1,32 @@
 [
-  {"id": 1, "name": "Иван Петров", "role": "user"},
-  {"id": 2, "name": "Анна Смирнова", "role": "moderator"},
-  {"id": 3, "name": "Сергей Коржов", "role": "user"}
+  {
+    "id": 1,
+    "name": "Иван Петров",
+    "role": "user"
+  },
+  {
+    "id": 2,
+    "name": "Анна Смирнова",
+    "role": "moderator"
+  },
+  {
+    "id": 3,
+    "name": "Сергей Коржов",
+    "role": "user"
+  },
+  {
+    "id": 4,
+    "name": "Сергей",
+    "role": "user"
+  },
+  {
+    "id": 5,
+    "name": "4",
+    "role": "4"
+  },
+  {
+    "id": 6,
+    "name": "1",
+    "role": "user"
+  }
 ]

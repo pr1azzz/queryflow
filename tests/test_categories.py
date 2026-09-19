@@ -22,6 +22,9 @@ def test_find_category() -> None:
     found = find_category(categories, "py")
     assert len(found) == 1
     assert found[0]["name"] == "Python"
+    by_id = find_category(categories, "2")
+    assert len(by_id) == 1
+    assert by_id[0]["name"] == "Django"
 
 
 def test_is_category_active() -> None:
