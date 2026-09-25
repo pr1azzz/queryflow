@@ -16,17 +16,7 @@
   },
   {
     "id": 4,
-    "name": "Помощь по Фреймворкам",
-    "is_active": true
-  },
-  {
-    "id": 5,
-    "name": "1",
-    "is_active": true
-  },
-  {
-    "id": 6,
-    "name": "1",
+    "name": "Помощь по фреймворкам",
     "is_active": true
   }
 ]
