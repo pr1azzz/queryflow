@@ -18,5 +18,10 @@
     "id": 4,
     "name": "Помощь по фреймворкам",
     "is_active": true
+  },
+  {
+    "id": 5,
+    "name": "Django2",
+    "is_active": true
   }
 ]

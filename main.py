@@ -1,23 +1,28 @@
 """
 QueryFlow — система учета вопросов и ответов.
 
-Точка запуска консольного приложения (ПР2): меню сценариев,
-коллекции, модули, JSON-хранилище.
+Точка запуска консольного приложения (ПР3): объектная модель,
+коллекции объектов, модули, JSON-хранилище.
 """
 
 from __future__ import annotations
 
 from datetime import date
 
-from answers import add_answer, count_answers, get_answers_for_question
-from categories import (
+from models import Answer, Category, Question, User
+from models.answers import (
+    add_answer,
+    count_answers,
+    get_answers_for_question,
+)
+from models.categories import (
     add_category,
     filter_active_categories,
     find_category,
-    is_category_active,
-    sort_categories,
+    get_category_by_id,
+    show_categories,
 )
-from questions import (
+from models.questions import (
     add_question,
     can_publish_question,
     close_question,
@@ -27,6 +32,12 @@ from questions import (
     get_question_by_id,
     get_question_status,
     sort_questions_by_date,
+)
+from models.users import (
+    add_user,
+    get_user_by_id,
+    normalize_role,
+    show_users,
 )
 from storage import (
     load_answers,
@@ -38,69 +49,50 @@ from storage import (
     save_questions,
     save_users,
 )
-from users import add_user, get_user_name, normalize_role
 from utils import configure_console, input_choice, input_int, input_nonempty
 
 
-def show_question_ids(questions: list[dict]) -> None:
+def show_question_ids(questions: list[Question]) -> None:
     """Краткий список id вопросов — чтобы не путать с id категорий."""
     if not questions:
         print("Вопросы отсутствуют.")
         return
     print("Доступные вопросы (id):")
     for item in sort_questions_by_date(questions):
-        preview = item["text"].strip()
+        preview = item.text
         if len(preview) > 40:
             preview = preview[:37] + "..."
-        print(f"  {item['id']}: {preview}")
-
-
-def show_categories(categories: dict[int, dict]) -> None:
-    """Вывести список категорий."""
-    if not categories:
-        print("Категории отсутствуют.")
-        return
-    print("\nID | Название | Активна")
-    print("-" * 40)
-    for category in sort_categories(categories):
-        active = "да" if category["is_active"] else "нет"
-        print(f"{category['id']:<2} | {category['name']:<20} | {active}")
+        print(f"  {item.id}: {preview}")
 
 
 def show_questions(
-    questions: list[dict],
-    categories: dict[int, dict],
-    users: dict[int, dict],
-    answers: list[dict],
+    questions: list[Question],
+    answers: list[Answer],
 ) -> None:
-    """Вывести список вопросов с статусами."""
+    """Вывести список вопросов с статусами (через объекты)."""
     if not questions:
         print("Вопросы отсутствуют.")
         return
     print()
     for item in sort_questions_by_date(questions):
-        category = categories.get(item["category_id"], {})
-        category_name = category.get("name", "?")
-        author = get_user_name(users, item["author_id"])
         status = get_question_status(
-            item["is_closed"],
-            count_answers(answers, item["id"]),
+            item.is_closed,
+            count_answers(answers, item.id),
         )
-        created = date.fromisoformat(item["created_on"])
+        created = date.fromisoformat(item.created_on)
         print(format_question_card(
-            author=author,
-            category=category_name,
-            text=item["text"],
+            author=item.author.name,
+            category=item.category.name,
+            text=item.text,
             status=status,
             created_on=created,
         ))
-        print(f"(id={item['id']})")
+        print(f"(id={item.id})")
         print("-" * 40)
 
 
 def show_answers_for_question(
-    answers: list[dict],
-    users: dict[int, dict],
+    answers: list[Answer],
     question_id: int,
 ) -> None:
     """Вывести ответы на выбранный вопрос."""
@@ -109,25 +101,22 @@ def show_answers_for_question(
         print("Ответов пока нет.")
         return
     for item in items:
-        author = get_user_name(users, item["author_id"])
-        print(f"[{item['created_on']}] {author}: {item['text']}")
+        print(item)
 
 
-def _pick_user(users: dict[int, dict]) -> int:
-    print("\nПользователи:")
-    for user in users.values():
-        print(f"  {user['id']}. {user['name']} ({user['role']})")
-    return input_int("ID пользователя: ")
-
-
-def action_add_category(categories: dict[int, dict]) -> None:
+def action_add_category(categories: list[Category]) -> None:
+    """Сценарий: добавить категорию."""
     name = input_nonempty("Название категории: ")
+    if not Category.validate_name(name):
+        print("Некорректное название категории.")
+        return
     add_category(categories, name, is_active=True)
     save_categories(categories)
     print("Категория добавлена.")
 
 
-def action_find_category(categories: dict[int, dict]) -> None:
+def action_find_category(categories: list[Category]) -> None:
+    """Сценарий: найти категорию."""
     query = input_nonempty("Поиск (название или id): ")
     found = find_category(categories, query)
     if not found:
@@ -135,100 +124,111 @@ def action_find_category(categories: dict[int, dict]) -> None:
               "(например «Python») или по id (например «4»).")
         return
     for item in found:
-        print(f"{item['id']}: {item['name']}")
+        print(f"{item.id}: {item}")
 
 
 def action_add_question(
-    questions: list[dict],
-    categories: dict[int, dict],
-    users: dict[int, dict],
+    questions: list[Question],
+    categories: list[Category],
+    users: list[User],
 ) -> None:
+    """Сценарий: опубликовать вопрос (связь Category + User)."""
     show_categories(categories)
     category_id = input_int("ID категории: ")
-    if category_id not in categories:
+    category = get_category_by_id(categories, category_id)
+    if category is None:
         print("Категория не найдена.")
         return
-    if not is_category_active(categories, category_id):
+    if not category.is_available():
         print("Публикация отклонена: категория неактивна.")
         return
     text = input_nonempty("Текст вопроса: ")
     if not can_publish_question(text, True):
         print("Публикация отклонена: слишком короткий текст.")
         return
-    author_id = _pick_user(users)
-    if author_id not in users:
+    show_users(users)
+    author_id = input_int("ID пользователя: ")
+    author = get_user_by_id(users, author_id)
+    if author is None:
         print("Пользователь не найден.")
         return
-    question = add_question(questions, text, category_id, author_id)
+    question = add_question(questions, text, category, author)
+    if question is None:
+        print("Публикация отклонена.")
+        return
     save_questions(questions)
-    print(f"Вопрос опубликован (id={question['id']}).")
+    print(f"Вопрос опубликован (id={question.id}).")
 
 
 def action_add_answer(
-    questions: list[dict],
-    answers: list[dict],
-    users: dict[int, dict],
+    questions: list[Question],
+    answers: list[Answer],
+    users: list[User],
 ) -> None:
+    """Сценарий: добавить ответ (связь Question + User)."""
     show_question_ids(questions)
     question_id = input_int("ID вопроса: ")
     question = get_question_by_id(questions, question_id)
     if question is None:
         print("Вопрос не найден. Сначала посмотрите список (пункт 5).")
         return
-    if question["is_closed"]:
+    if question.is_closed:
         print("Нельзя ответить: вопрос закрыт.")
         return
     text = input_nonempty("Текст ответа: ")
-    author_id = _pick_user(users)
-    if author_id not in users:
+    show_users(users)
+    author_id = input_int("ID пользователя: ")
+    author = get_user_by_id(users, author_id)
+    if author is None:
         print("Пользователь не найден.")
         return
-    answer = add_answer(answers, question_id, text, author_id)
+    answer = add_answer(answers, question, text, author)
+    if answer is None:
+        print("Не удалось добавить ответ.")
+        return
     save_answers(answers)
-    print(f"Ответ добавлен (id={answer['id']}).")
+    print(f"Ответ добавлен (id={answer.id}).")
 
 
 def action_check_status(
-    questions: list[dict],
-    answers: list[dict],
+    questions: list[Question],
+    answers: list[Answer],
 ) -> None:
+    """Сценарий: проверить статус вопроса."""
     show_question_ids(questions)
     question_id = input_int("ID вопроса: ")
     question = get_question_by_id(questions, question_id)
     if question is None:
         print("Вопрос не найден. Сначала посмотрите список (пункт 5).")
         return
-    status = get_question_status(
-        question["is_closed"],
-        count_answers(answers, question_id),
-    )
+    status = question.status_text(count_answers(answers, question_id))
     print(f"Статус: {status}")
 
 
 def action_filter_by_category(
-    questions: list[dict],
-    categories: dict[int, dict],
-    users: dict[int, dict],
-    answers: list[dict],
+    questions: list[Question],
+    categories: list[Category],
+    answers: list[Answer],
 ) -> None:
+    """Сценарий: вопросы по категории."""
     show_categories(categories)
     category_id = input_int("ID категории: ")
     filtered = filter_questions_by_category(questions, category_id)
-    show_questions(filtered, categories, users, answers)
+    show_questions(filtered, answers)
 
 
 def action_find_questions(
-    questions: list[dict],
-    categories: dict[int, dict],
-    users: dict[int, dict],
-    answers: list[dict],
+    questions: list[Question],
+    answers: list[Answer],
 ) -> None:
+    """Сценарий: поиск вопросов."""
     query = input_nonempty("Подстрока поиска: ")
     found = find_questions(questions, query)
-    show_questions(found, categories, users, answers)
+    show_questions(found, answers)
 
 
-def action_close_question(questions: list[dict]) -> None:
+def action_close_question(questions: list[Question]) -> None:
+    """Сценарий: закрыть вопрос через метод объекта."""
     show_question_ids(questions)
     question_id = input_int("ID вопроса: ")
     if close_question(questions, question_id):
@@ -238,7 +238,8 @@ def action_close_question(questions: list[dict]) -> None:
         print("Вопрос не найден. Сначала посмотрите список (пункт 5).")
 
 
-def action_add_user(users: dict[int, dict]) -> None:
+def action_add_user(users: list[User]) -> None:
+    """Сценарий: добавить пользователя."""
     name = input_nonempty("Имя пользователя: ")
     while True:
         role_raw = input_nonempty("Роль (user/moderator): ")
@@ -248,19 +249,21 @@ def action_add_user(users: dict[int, dict]) -> None:
         print("Ошибка: роль должна быть user или moderator.")
     user = add_user(users, name, role)
     save_users(users)
-    print(f"Пользователь добавлен (id={user['id']}).")
+    print(f"Пользователь добавлен (id={user.id}).")
 
 
-def action_show_active_categories(categories: dict[int, dict]) -> None:
+def action_show_active_categories(categories: list[Category]) -> None:
+    """Сценарий: показать активные категории."""
     active = filter_active_categories(categories)
     if not active:
         print("Активных категорий нет.")
         return
     for item in active:
-        print(f"{item['id']}: {item['name']}")
+        print(f"{item.id}: {item}")
 
 
 def print_menu() -> None:
+    """Вывести главное меню."""
     print("\n=== QueryFlow: учёт вопросов и ответов ===")
     print("1. Показать категории")
     print("2. Показать активные категории")
@@ -279,12 +282,12 @@ def print_menu() -> None:
 
 
 def main() -> None:
-    """Точка запуска: цикл меню и вызов функций проекта."""
+    """Точка запуска: загрузка объектов, цикл меню, сценарии."""
     configure_console()
     categories = load_categories()
     users = load_users()
-    questions = load_questions()
-    answers = load_answers()
+    questions = load_questions(categories, users)
+    answers = load_answers(questions, users)
 
     while True:
         print_menu()
@@ -303,15 +306,11 @@ def main() -> None:
         elif choice == "4":
             action_add_category(categories)
         elif choice == "5":
-            show_questions(questions, categories, users, answers)
+            show_questions(questions, answers)
         elif choice == "6":
-            action_find_questions(
-                questions, categories, users, answers,
-            )
+            action_find_questions(questions, answers)
         elif choice == "7":
-            action_filter_by_category(
-                questions, categories, users, answers,
-            )
+            action_filter_by_category(questions, categories, answers)
         elif choice == "8":
             action_add_question(questions, categories, users)
         elif choice == "9":
@@ -324,7 +323,7 @@ def main() -> None:
             if get_question_by_id(questions, qid) is None:
                 print("Вопрос не найден. Сначала посмотрите список (пункт 5).")
             else:
-                show_answers_for_question(answers, users, qid)
+                show_answers_for_question(answers, qid)
         elif choice == "12":
             action_add_answer(questions, answers, users)
         elif choice == "13":
