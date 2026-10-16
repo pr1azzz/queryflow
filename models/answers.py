@@ -82,6 +82,14 @@ def count_answers(answers: list[Answer], question_id: int) -> int:
     return len(get_answers_for_question(answers, question_id))
 
 
+def get_answer_by_id(answers: list[Answer], answer_id: int) -> Answer | None:
+    """Найти ответ по идентификатору для страницы деталей ПР5."""
+    for answer in answers:
+        if answer.id == answer_id:
+            return answer
+    return None
+
+
 def remove_answer(answers: list[Answer], answer_id: int) -> bool:
     """Удалить ответ по идентификатору."""
     for index, item in enumerate(answers):
