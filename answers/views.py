@@ -1,23 +1,19 @@
-"""Ответы и связанные объекты передаются в шаблоны ПР6."""
+"""ПР7: JOIN связывает ответ с вопросом, категорией и автором."""
 
 from django.shortcuts import render
 
-from models.answers import get_answer_by_id
-from storage import load_answers, load_categories, load_questions, load_users
+from db.queries import fetch_all, fetch_one
 
 
 def answers(request):
-    users = load_users()
-    questions = load_questions(load_categories(), users)
     return render(request, "answers/answer_list.html", {
-        "answers": load_answers(questions, users),
+        "answers": fetch_all("answer_list"),
     })
 
 
 def answer_detail(request, answer_id):
-    users = load_users()
-    questions = load_questions(load_categories(), users)
-    answer = get_answer_by_id(load_answers(questions, users), answer_id)
+    answer = (fetch_one("answer_detail", (answer_id,))
+              if answer_id < 2 ** 63 else None)
     if answer is None:
         return render(request, "404.html", {
             "message": "Ответ не найден",

@@ -1,27 +1,31 @@
-"""Категории и связанные вопросы: представления ПР6."""
+"""Категории и их вопросы из SQLite."""
 
 from django.shortcuts import render
 
-from models.categories import get_category_by_id, sort_categories
-from models.questions import filter_questions_by_category
-from storage import load_categories, load_questions, load_users
+from db.queries import fetch_all, fetch_one
 
 
 def categories(request):
     return render(request, "categories/category_list.html", {
-        "categories": sort_categories(load_categories()),
+        "categories": fetch_all("category_list"), "heading": "Категории",
+    })
+
+
+def active_categories(request):
+    return render(request, "categories/category_list.html", {
+        "categories": fetch_all("active_categories"),
+        "heading": "Активные категории",
     })
 
 
 def category_detail(request, category_id):
-    items = load_categories()
-    category = get_category_by_id(items, category_id)
+    category = (fetch_one("category_detail", (category_id,))
+                if category_id < 2 ** 63 else None)
     if category is None:
         return render(request, "404.html", {
             "message": "Категория не найдена",
         }, status=404)
-    questions = load_questions(items, load_users())
     return render(request, "categories/category_detail.html", {
         "category": category,
-        "questions": filter_questions_by_category(questions, category.id),
+        "questions": fetch_all("category_questions", (category_id,)),
     })

@@ -1,4 +1,4 @@
-"""Настройки учебного проекта ПР6 для локального запуска."""
+"""Настройки учебного проекта ПР7 для локального запуска."""
 
 import os
 from pathlib import Path
@@ -53,7 +53,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "queryflow.wsgi.application"
 ASGI_APPLICATION = "queryflow.asgi.application"
 
-# Только служебные таблицы Django. Сущности ПР3 читаются из JSON.
+# Служебная база Django. Предметная база ПР7 — data/queryflow.sqlite.
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",

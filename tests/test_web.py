@@ -1,6 +1,7 @@
-"""HTTP-проверки ПР5 с изолированным JSON-хранилищем, без доступа к БД."""
+"""HTTP-проверки ПР5–ПР7 с отдельной временной предметной базой."""
 
 import os
+from contextlib import closing
 from html import escape
 
 import django
@@ -10,32 +11,12 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "queryflow.settings")
 django.setup()
 
 from django.http import Http404  # noqa: E402
-from django.test import Client, override_settings  # noqa: E402
+from django.test import override_settings  # noqa: E402
 from django.urls import Resolver404, resolve, reverse  # noqa: E402
 
 import storage  # noqa: E402
-from models.answers import Answer  # noqa: E402
-from models.categories import Category  # noqa: E402
-from models.questions import Question  # noqa: E402
-from models.users import User  # noqa: E402
-
-
-@pytest.fixture
-def web(tmp_path, monkeypatch):
-    """Каждый тест читает и пишет только во временный каталог."""
-    monkeypatch.setattr(storage, "DATA_DIR", tmp_path)
-    category = Category(1, "Python")
-    user = User(1, "Автор", "user")
-    question = Question(1, "Как работает Python?", category, user,
-                        created_on="2026-09-19")
-    answer = Answer(1, "Через интерпретатор.", question, user,
-                    created_on="2026-09-19")
-    storage.save_categories([category])
-    storage.save_users([user])
-    storage.save_questions([question])
-    storage.save_answers([answer])
-    with override_settings(DEBUG=False, ALLOWED_HOSTS=["testserver"]):
-        yield Client()
+from db import database  # noqa: E402
+from db.import_json import import_data  # noqa: E402
 
 
 @pytest.mark.parametrize("url, expected", [
@@ -47,7 +28,7 @@ def web(tmp_path, monkeypatch):
     ("/answers/", "Через интерпретатор."),
     ("/answers/1/", "Как работает Python?"),
 ])
-def test_pages_use_json_and_shared_html(web, url, expected):
+def test_pages_use_sqlite_and_shared_html(web, url, expected):
     response = web.get(url)
     body = response.content.decode()
     assert response.status_code == 200
@@ -97,7 +78,7 @@ def test_http404_exception_uses_root_handler(web, monkeypatch):
     def missing(*args):
         raise Http404("Internal message must not be rendered")
 
-    monkeypatch.setattr("questions.views.get_question_by_id", missing)
+    monkeypatch.setattr("questions.views.fetch_one", missing)
     response = web.get("/questions/1/")
     assert response.status_code == 404
     assert "Страница не найдена" in response.content.decode()
@@ -122,6 +103,7 @@ def test_json_text_is_escaped(web, field):
     else:
         questions[0].created_on = payload
         storage.save_questions(questions)
+    import_data(storage.DATA_DIR)
     for url in ["/questions/", "/questions/1/"]:
         body = web.get(url).content.decode()
         assert payload not in body
@@ -135,6 +117,7 @@ def test_answer_text_is_escaped(web):
     answers = storage.load_answers(questions, users)
     answers[0].text = '<img src=x onerror="alert(1)">'
     storage.save_answers(answers)
+    import_data(storage.DATA_DIR)
     for url in ["/answers/", "/answers/1/", "/questions/1/"]:
         body = web.get(url).content.decode()
         assert answers[0].text not in body
@@ -142,40 +125,44 @@ def test_answer_text_is_escaped(web):
 
 
 def test_empty_storage_has_readable_pages(web):
-    for path in storage.DATA_DIR.glob("*.json"):
-        path.unlink()
+    with closing(database.get_connection()) as connection, connection:
+        for table in ["answers", "questions", "users", "categories"]:
+            connection.execute(f"DELETE FROM {table}")
     for url in ["/questions/", "/categories/", "/answers/"]:
         response = web.get(url)
         assert response.status_code == 200
         assert "пока нет" in response.content.decode()
 
 
-def test_status_and_json_changes_are_visible_on_next_request(web):
-    categories = storage.load_categories()
-    users = storage.load_users()
-    questions = storage.load_questions(categories, users)
+def test_status_and_sql_changes_are_visible_on_next_request(web):
     assert "открыт" in web.get("/questions/1/").content.decode()
-    storage.save_answers([])
+    with closing(database.get_connection()) as connection, connection:
+        connection.execute("DELETE FROM answers")
     assert "ожидает ответа" in web.get("/questions/1/").content.decode()
-    questions[0].close()
-    questions[0].text = "Обновлённый вопрос из JSON"
-    storage.save_questions(questions)
+    with closing(database.get_connection()) as connection, connection:
+        connection.execute(
+            "UPDATE questions SET is_closed = 1, text = ? WHERE id = 1",
+            ("Обновлённый вопрос из SQLite",),
+        )
     body = web.get("/questions/1/").content.decode()
     assert "закрыт" in body
-    assert "Обновлённый вопрос из JSON" in body
+    assert "Обновлённый вопрос из SQLite" in body
 
 
 def test_inactive_category_is_displayed_and_get_does_not_write(web):
     categories = storage.load_categories()
     categories[0].is_active = False
     storage.save_categories(categories)
+    import_data(storage.DATA_DIR)
     before = {p.name: p.read_bytes() for p in storage.DATA_DIR.glob("*.json")}
+    database_before = database.DB_PATH.read_bytes()
     for url in ["/", "/questions/", "/questions/1/", "/categories/",
                 "/categories/1/", "/answers/", "/answers/1/"]:
         assert web.get(url).status_code == 200
     assert "Архив" in web.get("/categories/1/").content.decode()
     after = {p.name: p.read_bytes() for p in storage.DATA_DIR.glob("*.json")}
     assert before == after
+    assert database_before == database.DB_PATH.read_bytes()
 
 
 def test_untrusted_host_is_rejected(web):
