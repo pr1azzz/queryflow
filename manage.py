@@ -1,5 +1,5 @@
 """Команды управления Django-проектом QueryFlow."""
-
+# точка запуска управляющих команд django
 import os
 import sys
 
