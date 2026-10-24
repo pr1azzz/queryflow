@@ -1,0 +1,8 @@
+<article class="card question-card mb-3">
+  <div class="card-body p-4">
+    {% include 'questions/includes/question_status.html' with question=question answers_count=answers_count only %}
+    <span class="text-secondary small">{{ question.category.name }} · Ответов: {{ answers_count }}</span>
+    <h2 class="h5 mt-3"><a href="{% url 'questions:detail' question.id %}">{{ question.text|default:'Без текста'|truncatechars:150 }}</a></h2>
+    <p class="text-secondary small mb-0">{{ question.author.name }} · {{ question.created_on }}</p>
+  </div>
+</article>

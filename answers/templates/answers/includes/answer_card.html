@@ -1,0 +1,6 @@
+<article class="card mb-3"><div class="card-body p-4">
+  <h2 class="h5"><a href="{% url 'answers:detail' answer.id %}">Ответ №{{ answer.id }}</a></h2>
+  <p class="preserve-lines">{{ answer.text }}</p>
+  <p>К вопросу: <a href="{% url 'questions:detail' answer.question.id %}">{{ answer.question.text }}</a></p>
+  <p class="text-secondary small mb-0">{{ answer.author.name }} · {{ answer.created_on }}</p>
+</div></article>

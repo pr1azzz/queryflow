@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Вопросы{% endblock %}
+{% block content %}
+  <h1>Вопросы</h1>
+  <p class="text-secondary">Обсуждения сообщества · {{ cards|length }}</p>
+  {% for item in cards %}
+    {% include 'questions/includes/question_card.html' with question=item.question answers_count=item.answers_count only %}
+  {% empty %}
+    <p class="empty-state">Вопросов пока нет.</p>
+  {% endfor %}
+{% endblock %}

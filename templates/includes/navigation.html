@@ -1,0 +1,15 @@
+{% load static %}
+<header class="bg-white border-bottom">
+  <nav class="container py-3 d-flex flex-wrap align-items-center gap-3" aria-label="Основная навигация">
+    <a class="brand fs-3 text-decoration-none me-auto" href="{% url 'homepage:index' %}">
+      <img class="queryflow-logo" src="{% static 'homepage/img/logo.svg' %}" alt="Логотип QueryFlow" width="40" height="40">
+      QueryFlow<span class="text-dark">.</span>
+    </a>
+    <div class="nav flex-wrap">
+      <a class="nav-link" href="{% url 'homepage:index' %}">Главная</a>
+      <a class="nav-link" href="{% url 'questions:list' %}">Вопросы</a>
+      <a class="nav-link" href="{% url 'categories:list' %}">Категории</a>
+      <a class="nav-link" href="{% url 'answers:list' %}">Ответы</a>
+    </div>
+  </nav>
+</header>

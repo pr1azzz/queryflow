@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Вопрос №{{ question.id }}{% endblock %}
+{% block content %}
+  <a href="{% url 'questions:list' %}">← Все вопросы</a>
+  <article class="card question-card my-4"><div class="card-body p-4">
+    <p class="text-secondary">Вопрос №{{ question.id }}</p>
+    <h1 class="h2 preserve-lines">{{ question.text }}</h1>
+    <p>Категория: <a href="{% url 'categories:detail' question.category.id %}">{{ question.category.name }}</a></p>
+    <p>Автор: {{ question.author.name }}</p>
+    <p>Дата: {{ question.created_on }}</p>
+    {% include 'questions/includes/question_status.html' with question=question answers_count=answers_count only %}
+  </div></article>
+  <h2 class="h4">Ответы · {{ answers|length }}</h2>
+  {% for answer in answers %}
+    {% include 'answers/includes/answer_card.html' with answer=answer only %}
+  {% empty %}
+    <p class="empty-state">Ответов пока нет.</p>
+  {% endfor %}
+{% endblock %}

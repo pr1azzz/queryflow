@@ -1,0 +1,15 @@
+body { background: #f5f7fb; color: #223047; min-height: 100vh; }
+main { min-height: 70vh; overflow-wrap: anywhere; }
+.brand { font-weight: 800; letter-spacing: -.04em; }
+.queryflow-logo { vertical-align: middle; margin-right: .3rem; }
+.hero { border-left: 5px solid #0d6efd; }
+.card { border: 1px solid #e1e7f0; border-radius: 1rem; }
+.question-card { box-shadow: 0 3px 12px #22304708; }
+.question-status { font-weight: 600; padding: .5em .7em; }
+.status-open { background: #125bc8; }
+.status-closed { background: #626b76; }
+.status-waiting { background: #825000; }
+.preserve-lines { white-space: pre-wrap; }
+.nav-link { font-weight: 500; }
+a:focus-visible { outline: 3px solid #0d6efd; outline-offset: 3px; }
+.empty-state { padding: 1.5rem; background: white; border-radius: 1rem; }

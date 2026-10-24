@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}{{ message|default:'Страница не найдена' }}{% endblock %}
+{% block content %}
+  <section class="card"><div class="card-body p-5">
+    <p class="display-3 text-primary fw-bold">404</p>
+    <h1>{{ message|default:'Страница не найдена' }}</h1>
+    <p>Проверьте адрес или вернитесь на главную страницу.</p>
+    <a href="{% url 'homepage:index' %}" class="btn btn-primary">На главную</a>
+  </div></section>
+{% endblock %}

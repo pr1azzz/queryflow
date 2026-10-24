@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}{{ category.name }}{% endblock %}
+{% block content %}
+  <a href="{% url 'categories:list' %}">← Все категории</a>
+  <h1 class="mt-4">{{ category.name|default:'Без названия' }}</h1>
+  <p>Категория №{{ category.id }} · {% if category.is_active %}Доступна для публикации{% else %}Архив{% endif %}</p>
+  <h2 class="h4">Вопросы · {{ questions|length }}</h2>
+  <ul class="list-group">
+    {% for question in questions %}
+      <li class="list-group-item p-3"><a href="{% url 'questions:detail' question.id %}">{{ question.text }}</a></li>
+    {% empty %}
+      <li class="list-group-item">В этой теме пока нет вопросов.</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

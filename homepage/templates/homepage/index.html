@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Главная{% endblock %}
+{% block content %}
+  <section class="hero bg-white rounded-4 p-4 p-md-5 mb-4">
+    <p class="text-primary fw-semibold">ВОПРОСЫ. ОТВЕТЫ. ЗНАНИЯ.</p>
+    <h1 class="display-4 fw-bold">Знания начинаются с вопроса</h1>
+    <p class="lead text-secondary mt-3">QueryFlow помогает находить вопросы по темам, читать ответы и следить за ходом обсуждений.</p>
+    <a href="{% url 'questions:list' %}" class="btn btn-primary btn-lg mt-2">Перейти к вопросам →</a>
+  </section>
+  <div class="row g-4">
+    <section class="col-md-4"><div class="card h-100"><div class="card-body p-4">
+      <h2 class="h4">Вопросы</h2>
+      <p>Тексты обсуждений, авторы и статусы решения.</p>
+      <a href="{% url 'questions:list' %}">Смотреть вопросы →</a>
+    </div></div></section>
+    <section class="col-md-4"><div class="card h-100"><div class="card-body p-4">
+      <h2 class="h4">Категории</h2>
+      <p>Темы для поиска информации и связанных вопросов.</p>
+      <a href="{% url 'categories:list' %}">Выбрать тему →</a>
+    </div></div></section>
+    <section class="col-md-4"><div class="card h-100"><div class="card-body p-4">
+      <h2 class="h4">Ответы</h2>
+      <p>Объяснения участников и ссылки на обсуждения.</p>
+      <a href="{% url 'answers:list' %}">Читать ответы →</a>
+    </div></div></section>
+  </div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Категории{% endblock %}
+{% block content %}
+  <h1>Категории</h1>
+  <p class="text-secondary">Выберите тему · {{ categories|length }}</p>
+  <ul class="list-group">
+    {% for category in categories %}
+      <li class="list-group-item p-3 d-flex flex-wrap gap-3">
+        <a href="{% url 'categories:detail' category.id %}" class="me-auto">{{ category.name|default:'Без названия' }}</a>
+        {% if category.is_active %}<span class="badge text-bg-light">Активна</span>{% else %}<span class="badge text-bg-secondary">Архив</span>{% endif %}
+      </li>
+    {% empty %}
+      <li class="list-group-item">Категорий пока нет.</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

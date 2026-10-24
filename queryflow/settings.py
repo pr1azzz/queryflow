@@ -1,4 +1,4 @@
-"""Настройки учебного проекта ПР5 для локального запуска."""
+"""Настройки учебного проекта ПР6 для локального запуска."""
 
 import os
 from pathlib import Path
@@ -39,7 +39,7 @@ ROOT_URLCONF = "queryflow.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
