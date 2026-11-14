@@ -1,9 +1,29 @@
 from django.db import models
+from django.db.models.functions import Length
 from django.urls import reverse
 from django.utils import timezone
 
 
+class QuestionQuerySet(models.QuerySet):
+    def active(self):
+        return self.filter(status=Question.Status.OPEN)
+
+    def cancelled(self):
+        return self.filter(status=Question.Status.WITHDRAWN)
+
+    def completed(self):
+        return self.filter(status=Question.Status.CLOSED)
+
+    def for_date(self, day):
+        return self.filter(created_on=day)
+
+
 class Question(models.Model):
+    class Status(models.TextChoices):
+        OPEN = "open", "Открыт"
+        CLOSED = "closed", "Закрыт"
+        WITHDRAWN = "withdrawn", "Отозван"
+
     text = models.TextField("Текст вопроса", max_length=2000)
     category = models.ForeignKey(
         "categories.Category", on_delete=models.PROTECT,
@@ -11,7 +31,13 @@ class Question(models.Model):
     author = models.ForeignKey(
         "participants.User", on_delete=models.PROTECT,
         related_name="questions", verbose_name="Автор")
-    is_closed = models.BooleanField("Закрыт", default=False)
+    status = models.CharField("Статус", max_length=12, choices=Status,
+                              default=Status.OPEN)
+    text_length = models.GeneratedField(
+        expression=Length("text"), output_field=models.IntegerField(),
+        db_persist=True, verbose_name="Символов в вопросе")
+    objects = QuestionQuerySet.as_manager()
+
     created_on = models.DateField(
         "Дата публикации", default=timezone.localdate)
 
@@ -19,9 +45,20 @@ class Question(models.Model):
         ordering = ["-created_on", "-pk"]
         verbose_name = "Вопрос"
         verbose_name_plural = "Вопросы"
+        constraints = [models.CheckConstraint(
+            condition=models.Q(status__in=["open", "closed", "withdrawn"]),
+            name="question_valid_status")]
 
     def __str__(self):
         return self.text[:80]
 
     def get_absolute_url(self):
         return reverse("questions:detail", args=[self.pk])
+
+    @property
+    def is_closed(self):
+        return self.status == self.Status.CLOSED
+
+    def cancel(self):
+        self.status = self.Status.WITHDRAWN
+        self.save(update_fields=["status"])

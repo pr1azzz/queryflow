@@ -38,6 +38,10 @@ class Command(BaseCommand):
                     created = 0
                     for row in tables[table]:
                         pk = row.pop("id")
+                        if table == "questions":
+                            row["status"] = (Question.Status.CLOSED
+                                             if row.pop("is_closed")
+                                             else Question.Status.OPEN)
                         obj, is_new = model.objects.get_or_create(
                             pk=pk, defaults=row)
                         obj.full_clean()

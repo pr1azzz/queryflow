@@ -18,10 +18,11 @@ def active_categories(request):
     })
 
 
-def category_detail(request, category_id):
-    if category_id >= 2 ** 63:
+def category_detail(request, category_id=None, slug=None):
+    if category_id is not None and category_id >= 2 ** 63:
         raise Http404("Категория не найдена")
-    category = get_object_or_404(Category, pk=category_id)
+    lookup = {"slug": slug} if slug else {"pk": category_id}
+    category = get_object_or_404(Category, **lookup)
     return render(request, "categories/category_detail.html", {
         "category": category, "questions": question_rows(
             category.questions.all()),

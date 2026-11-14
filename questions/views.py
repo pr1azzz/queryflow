@@ -47,12 +47,14 @@ def questions(request):
 
 
 def open_questions(request):
-    return list_response(request, Question.objects.filter(is_closed=False),
+    return list_response(request, Question.objects.active(),
                          "Открытые вопросы", "questions/question_list.html")
 
 
 def unanswered_questions(request):
-    qs = Question.objects.exclude(is_closed=True).filter(answers__isnull=True)
+    qs = Question.objects.exclude(
+        status__in=[Question.Status.CLOSED, Question.Status.WITHDRAWN]
+    ).filter(answers__isnull=True)
     return list_response(request, qs, "Вопросы без ответов",
                          "questions/question_list.html")
 
@@ -85,3 +87,8 @@ def statistics(request):
         }, status=400)
     return render(request, "questions/statistics.html",
                   statistics_context(minimum))
+
+
+def withdrawn_questions(request):
+    return list_response(request, Question.objects.cancelled(),
+                         "Отозванные вопросы", "questions/question_list.html")

@@ -125,7 +125,7 @@ def test_status_and_orm_changes_are_visible_on_next_request(web):
     Answer.objects.all().delete()
     assert "ожидает ответа" in web.get("/questions/1/").content.decode()
     Question.objects.filter(pk=1).update(
-        is_closed=True, text="Обновлённый вопрос из ORM")
+        status=Question.Status.CLOSED, text="Обновлённый вопрос из ORM")
     body = web.get("/questions/1/").content.decode()
     assert "закрыт" in body
     assert "Обновлённый вопрос из ORM" in body

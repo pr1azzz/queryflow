@@ -286,3 +286,30 @@ ID и связи, пропускает уже существующие ID (не 
 
 Проверки: `python manage.py check`, `python manage.py makemigrations --check`,
 `python -m pytest`, `python -m flake8`.
+
+
+## ПР10: администрирование и ORM
+
+`/admin/`: все четыре модели, поиск по связанным полям, фильтры, сортировка,
+inline-вопросы у категорий и участников, inline-ответы у вопроса.
+Для нового окружения: `python manage.py createsuperuser`.
+Локальная учебная учётная запись хранится в игнорируемом `.env.local`;
+она не является участником предметной области и не переносится импортом.
+
+Миграция questions/0002 сначала добавляет status, затем RunPython переводит
+is_closed=False в open, True в closed и лишь потом удаляет булево поле.
+Обратная миграция сводит withdrawn к False: старый формат не имеет отзыва.
+QuerySet: active(), cancelled(), completed(), for_date(). Отозванные и закрытые
+вопросы не входят в список вопросов, ожидающих ответа. Отзыв сохраняет запись.
+Для проверки на дату используйте `/questions/unanswered/?date=2026-09-19`.
+У категорий появились уникальные slug и get_absolute_url(); старые URL по ID
+сохранены. Поле Question.text_length вычисляет SQLite через GeneratedField
+и Length(text); после изменения текста вызвать refresh_from_db(). Общие данные
+шапки/подвала передаёт homepage.context_processors.site_info.
+
+При DEBUG=True открыть Django Debug Toolbar → SQL: в списке values()+F()+Count()
+выбирают названия связей одним запросом, в карточке select_related() загружает
+категорию и автора совместно. Paginator отдельно считает записи и ограничивает
+страницу. Тест проверяет, что число запросов списка не растёт с числом карточек.
+Документация: [миграции Django](https://docs.djangoproject.com/en/5.2/topics/migrations/),
+[Debug Toolbar](https://django-debug-toolbar.readthedocs.io/en/stable/installation.html).

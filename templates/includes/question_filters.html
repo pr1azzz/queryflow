@@ -6,6 +6,7 @@
   <label>Дата публикации <input class="form-control" type="date" name="date" value="{{ request.GET.date }}"></label>
   <label>Не раньше <input class="form-control" type="date" name="since" value="{{ request.GET.since }}"></label>
   <label>Порядок <select class="form-select" name="sort"><option value="newest">Сначала новые</option><option value="oldest" {% if request.GET.sort == 'oldest' %}selected{% endif %}>Сначала старые</option><option value="category" {% if request.GET.sort == 'category' %}selected{% endif %}>По категории</option><option value="author" {% if request.GET.sort == 'author' %}selected{% endif %}>По автору</option></select></label>
+  <label>Статус <select class="form-select" name="status"><option value="">Все</option><option value="open" {% if request.GET.status == "open" %}selected{% endif %}>Открыт</option><option value="closed" {% if request.GET.status == "closed" %}selected{% endif %}>Закрыт</option><option value="withdrawn" {% if request.GET.status == "withdrawn" %}selected{% endif %}>Отозван</option></select></label>
   <button class="btn btn-primary mt-3">Применить</button>
 </form>
 {% if error %}<p class="alert alert-danger">{{ error }}</p>{% endif %}

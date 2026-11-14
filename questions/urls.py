@@ -4,6 +4,7 @@ from . import views
 
 app_name = "questions"
 urlpatterns = [
+    path("withdrawn/", views.withdrawn_questions, name="withdrawn"),
     path("", views.questions, name="list"),
     path("open/", views.open_questions, name="open"),
     path("unanswered/", views.unanswered_questions, name="unanswered"),

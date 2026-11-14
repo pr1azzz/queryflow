@@ -148,7 +148,7 @@ def test_filters_and_unanswered_use_database(web):
     with closing(database.get_connection()) as connection, connection:
         connection.execute("UPDATE questions SET is_closed = 1 WHERE id = 1")
         connection.execute("UPDATE categories SET is_active = 0 WHERE id = 1")
-    Question.objects.filter(pk=1).update(is_closed=True)
+    Question.objects.filter(pk=1).update(status=Question.Status.CLOSED)
     Category.objects.filter(pk=1).update(is_active=False)
     assert "Как работает Python?" not in (
         web.get("/questions/open/").content.decode()
@@ -157,7 +157,7 @@ def test_filters_and_unanswered_use_database(web):
     with closing(database.get_connection()) as connection, connection:
         connection.execute("UPDATE questions SET is_closed = 0 WHERE id = 1")
         connection.execute("DELETE FROM answers")
-    Question.objects.filter(pk=1).update(is_closed=False)
+    Question.objects.filter(pk=1).update(status=Question.Status.OPEN)
     Answer.objects.all().delete()
     assert "Как работает Python?" in (
         web.get("/questions/unanswered/").content.decode()

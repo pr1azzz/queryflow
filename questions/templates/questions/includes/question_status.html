@@ -1,4 +1,6 @@
-{% if question.is_closed %}
+{% if question.status == "withdrawn" %}
+  <span class="badge text-bg-secondary">отозван</span>
+{% elif question.is_closed %}
   <span class="badge question-status status-closed">закрыт</span>
 {% elif answers_count %}
   <span class="badge question-status status-open">открыт</span>
