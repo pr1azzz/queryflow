@@ -1,4 +1,4 @@
-"""Настройки учебного проекта ПР7 для локального запуска."""
+"""Настройки учебного проекта ПР9–ПР11 для локального запуска."""
 
 import os
 from pathlib import Path
@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "questions.apps.QuestionsConfig",
     "categories.apps.CategoriesConfig",
     "answers.apps.AnswersConfig",
+    "participants.apps.ParticipantsConfig",
 ]
 
 MIDDLEWARE = [
@@ -46,6 +47,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "homepage.context_processors.site_info",
             ],
         },
     },
@@ -53,7 +55,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "queryflow.wsgi.application"
 ASGI_APPLICATION = "queryflow.asgi.application"
 
-# Служебная база Django. Предметная база ПР7 — data/queryflow.sqlite.
+# Основная ORM-база. SQLite ПР7 сохранена как источник начального импорта.
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
@@ -76,3 +78,14 @@ USE_I18N = True
 USE_TZ = True
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Панель SQL доступна только при локальной отладке.
+if DEBUG:
+    INSTALLED_APPS += ["debug_toolbar"]
+    MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+INTERNAL_IPS = ["127.0.0.1", "::1"]
+
+MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_URL = "/media/"
+
+DEBUG_TOOLBAR_CONFIG = {"SHOW_COLLAPSED": True}

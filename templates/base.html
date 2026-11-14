@@ -14,7 +14,8 @@
     {% include 'includes/navigation.html' %}
     <main class="container py-5">{% block content %}{% endblock %}</main>
     <footer class="container py-4 border-top text-secondary small">
-      © <span id="current-year"></span> QueryFlow · Система учёта вопросов и ответов
+      © <span id="current-year"></span> {{ site_name|default:"QueryFlow" }} · Система учёта вопросов и ответов
+      {% if active_category_count != None %} · Активных тем: {{ active_category_count }}{% endif %}
     </footer>
   </body>
 </html>

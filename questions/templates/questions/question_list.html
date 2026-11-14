@@ -2,16 +2,20 @@
 {% block title %}{{ heading|default:"Вопросы" }}{% endblock %}
 {% block content %}
   <h1>{{ heading|default:'Вопросы' }}</h1>
+  <p><a href="{% url 'questions:create' %}" class="btn btn-primary">Задать вопрос</a></p>
   <nav class="d-flex flex-wrap gap-3 mb-3" aria-label="Разделы вопросов">
     <a href="{% url 'questions:list' %}">Все вопросы</a>
+    <a href="{% url 'questions:withdrawn' %}">Отозванные</a>
     <a href="{% url 'questions:open' %}">Открытые</a>
     <a href="{% url 'questions:unanswered' %}">Без ответов</a>
     <a href="{% url 'questions:search' %}">Найти вопрос</a>
   </nav>
+  {% include "includes/question_filters.html" %}
   <p class="text-secondary">Обсуждения сообщества · {{ cards|length }}</p>
   {% for item in cards %}
     {% include 'questions/includes/question_card.html' with question=item.question answers_count=item.answers_count only %}
   {% empty %}
     <p class="empty-state">Вопросов пока нет.</p>
   {% endfor %}
+  {% include "includes/pagination.html" %}
 {% endblock %}

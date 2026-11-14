@@ -3,29 +3,7 @@
 {% block content %}
   <h1>Поиск вопросов</h1>
   <p class="text-secondary">Ищите по тексту, теме и дате публикации. Для русских букв учитывается регистр.</p>
-  <form method="get" action="{% url 'questions:search' %}" class="card p-4 mb-4">
-    <div class="row g-3">
-      <div class="col-md-5">
-        <label for="q" class="form-label">Текст вопроса</label>
-        <input class="form-control" type="search" id="q" name="q" value="{{ q }}" maxlength="200" placeholder="Например, Python">
-      </div>
-      <div class="col-md-3">
-        <label for="category" class="form-label">Категория</label>
-        <select class="form-select" id="category" name="category">
-          <option value="">Все категории</option>
-          {% for category in categories %}
-            <option value="{{ category.id }}" {% if category_value == category.id|stringformat:'s' %}selected{% endif %}>{{ category.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-4">
-        <label for="since" class="form-label">Опубликовано не раньше</label>
-        <input class="form-control" type="date" id="since" name="since" value="{{ since }}">
-      </div>
-    </div>
-    <div class="mt-3"><button class="btn btn-primary" type="submit">Найти</button>
-      <a class="btn btn-outline-secondary" href="{% url 'questions:search' %}">Сбросить</a></div>
-  </form>
+  {% include "includes/question_filters.html" %}
   {% if error %}<p class="alert alert-danger" role="alert">{{ error }}</p>
   {% elif submitted %}
     <h2 class="h4">Найдено: {{ total }}</h2>

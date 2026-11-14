@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}{{ heading }}{% endblock %}
+{% block content %}
+  <h1 class="h2 mb-4">{{ heading }}</h1>
+  <form method="post" enctype="multipart/form-data" class="card p-4">
+    {% csrf_token %}
+    {% include "includes/form_fields.html" %}
+    <div class="mt-4 d-flex gap-3">
+      <button type="submit" class="btn btn-primary">Сохранить</button>
+      <a href="{% url 'questions:list' %}" class="btn btn-outline-secondary">К вопросам</a>
+    </div>
+  </form>
+{% endblock %}

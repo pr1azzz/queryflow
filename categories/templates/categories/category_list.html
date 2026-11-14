@@ -7,7 +7,7 @@
   <ul class="list-group">
     {% for category in categories %}
       <li class="list-group-item p-3 d-flex flex-wrap gap-3">
-        <a href="{% url 'categories:detail' category.id %}" class="me-auto">{{ category.name|default:'Без названия' }}</a>
+        <a href="{{ category.get_absolute_url }}" class="me-auto">{{ category.name|default:'Без названия' }}</a>
         {% if category.is_active %}<span class="badge text-bg-light">Активна</span>{% else %}<span class="badge text-bg-secondary">Архив</span>{% endif %}
       </li>
     {% empty %}

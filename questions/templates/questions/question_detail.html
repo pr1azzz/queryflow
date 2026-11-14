@@ -5,11 +5,21 @@
   <article class="card question-card my-4"><div class="card-body p-4">
     <p class="text-secondary">Вопрос №{{ question.id }}</p>
     <h1 class="h2 preserve-lines">{{ question.text }}</h1>
-    <p>Категория: <a href="{% url 'categories:detail' question.category_id %}">{{ question.category_name }}</a></p>
-    <p>Автор: {{ question.author_name }}</p>
+    <p>Категория: <a href="{% url 'categories:detail' question.category_id %}">{{ question.category.name }}</a></p>
+    <p>Автор: {{ question.author.name }}</p>
     <p>Дата: {{ question.created_on }}</p>
     {% include 'questions/includes/question_status.html' with question=question answers_count=answers_count only %}
   </div></article>
+  <div class="d-flex flex-wrap gap-2 mb-4">
+    <a class="btn btn-outline-primary" href="{% url 'questions:edit' question.pk %}">Редактировать вопрос</a>
+    {% if question.status == 'open' %}
+      <a class="btn btn-primary" href="{% url 'answers:create' question.pk %}">Ответить</a>
+      <form method="post" action="{% url 'questions:close' question.pk %}">{% csrf_token %}<button class="btn btn-outline-success">Закрыть вопрос</button></form>
+    {% endif %}
+    {% if question.status != 'withdrawn' %}
+      <form method="post" action="{% url 'questions:cancel' question.pk %}">{% csrf_token %}<button class="btn btn-outline-secondary">Отозвать вопрос</button></form>
+    {% endif %}
+  </div>
   <h2 class="h4">Ответы · {{ answers|length }}</h2>
   {% for answer in answers %}
     {% include 'answers/includes/answer_card.html' with answer=answer only %}

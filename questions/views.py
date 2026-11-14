@@ -1,97 +1,84 @@
-"""ПР7: SQL-выборки, поиск и статистика без Django ORM."""
+"""Списки, поиск, подробная страница и статистика через Django ORM."""
 
-from datetime import date
+from django.core.paginator import Paginator
+from django.db.models import Count
+from django.http import Http404
+from django.shortcuts import get_object_or_404, render
 
-from django.shortcuts import render
-
-from db.queries import fetch_all, fetch_one
+from questions.models import Question
+from questions.forms import QuestionFilterForm, QuestionForm
+from queryflow.form_views import form_response
+from django.shortcuts import redirect
+from django.views.decorators.http import require_POST, require_http_methods
+from questions.queries import (
+    answer_rows, filtered_questions, question_rows, statistics_context,
+)
 
 PAGE_SIZE = 10
 
 
-def _cards(rows):
-    return [{"question": row, "answers_count": row["answers_count"]}
-            for row in rows]
+def list_response(request, queryset, heading, template, submitted=True):
+    form = QuestionFilterForm(request.GET)
+    context = {
+        "heading": heading, "submitted": submitted, "cards": [], "form": form,
+    }
+    if not form.is_valid():
+        context["error"] = "Проверьте параметры поиска, дату и номер страницы."
+        return render(request, template, context, status=400)
+    data = form.cleaned_data.copy()
+    for key in ("category", "author"):
+        data[key] = data[key].pk if data.get(key) else None
+    rows = question_rows(filtered_questions(data, queryset))
+    page = Paginator(rows, PAGE_SIZE).get_page(data.get("page") or 1)
+    context.update({
+        "cards": [{"question": row, "answers_count": row["answers_count"]}
+                  for row in page],
+        "page_obj": page, "total": page.paginator.count,
+        "q": data["q"], "since": request.GET.get("since", ""),
+        "category_value": str(data["category"]), "page": page.number,
+        "previous_page": page.previous_page_number() if page.has_previous()
+        else None,
+        "next_page": page.next_page_number() if page.has_next() else None,
+    })
+    return render(request, template, context)
 
 
 def questions(request):
-    return render(request, "questions/question_list.html", {
-        "cards": _cards(fetch_all("question_list")), "heading": "Вопросы",
-    })
+    return list_response(request, Question.objects.all(), "Вопросы",
+                         "questions/question_list.html")
 
 
 def open_questions(request):
-    return render(request, "questions/question_list.html", {
-        "cards": _cards(fetch_all("open_questions")),
-        "heading": "Открытые вопросы",
-    })
+    return list_response(request, Question.objects.active(),
+                         "Открытые вопросы", "questions/question_list.html")
 
 
 def unanswered_questions(request):
-    return render(request, "questions/question_list.html", {
-        "cards": _cards(fetch_all("unanswered_questions")),
-        "heading": "Вопросы без ответов",
-    })
+    qs = Question.objects.exclude(
+        status__in=[Question.Status.CLOSED, Question.Status.WITHDRAWN]
+    ).filter(answers__isnull=True)
+    return list_response(request, qs, "Вопросы без ответов",
+                         "questions/question_list.html")
 
 
 def question_detail(request, question_id):
-    question = (fetch_one("question_detail", (question_id,))
-                if question_id < 2 ** 63 else None)
-    if question is None:
-        return render(request, "404.html", {
-            "message": "Вопрос не найден",
-        }, status=404)
+    if question_id >= 2 ** 63:
+        raise Http404("Вопрос не найден")
+    question = get_object_or_404(
+        Question.objects.select_related("category", "author")
+        .annotate(answers_count=Count("answers")), pk=question_id)
     return render(request, "questions/question_detail.html", {
-        "question": question,
-        "answers": fetch_all("question_answers", (question_id,)),
-        "answers_count": question["answers_count"],
+        "question": question, "answers": answer_rows(question.answers.all()),
+        "answers_count": question.answers_count,
     })
 
 
 def search(request):
-    """Проверить GET-параметры и передать значения отдельно от текста SQL."""
-    text = request.GET.get("q", "").strip()
-    category = request.GET.get("category", "")
-    since = request.GET.get("since", "")
-    context = {
-        "q": text, "category_value": category, "since": since,
-        "categories": fetch_all("category_list"), "cards": [],
-        "submitted": bool(request.GET), "total": 0,
-    }
-    try:
-        page = int(request.GET.get("page", "1"))
-        if not 1 <= page <= 1000000:
-            raise ValueError("Номер страницы должен быть от 1 до 1000000.")
-        category_id = int(category) if category else None
-        if category_id is not None and not 1 <= category_id < 2 ** 63:
-            raise ValueError("Укажите положительный ID категории.")
-        if len(text) > 200:
-            raise ValueError("Поисковый текст длиннее 200 знаков.")
-        if since and date.fromisoformat(since).isoformat() != since:
-            raise ValueError("Дата должна быть в формате ГГГГ-ММ-ДД.")
-    except ValueError:
-        context["error"] = (
-            "Проверьте параметры: текст до 200 знаков, положительный ID "
-            "категории, дата ГГГГ-ММ-ДД, номер страницы от 1 до 1000000."
-        )
-        return render(request, "questions/search.html", context, status=400)
-    if context["submitted"]:
-        parameters = (text, text, category_id, category_id, since, since)
-        context["total"] = fetch_one("search_count", parameters)["total"]
-        rows = fetch_all("question_search", (
-            *parameters, PAGE_SIZE, (page - 1) * PAGE_SIZE,
-        ))
-        context.update({
-            "cards": _cards(rows), "page": page,
-            "previous_page": page - 1 if page > 1 else None,
-            "next_page": page + 1 if page * PAGE_SIZE < context["total"]
-            else None,
-        })
-    return render(request, "questions/search.html", context)
+    return list_response(request, Question.objects.all(), "Поиск вопросов",
+                         "questions/search.html", bool(request.GET))
 
 
 def statistics(request):
-    """Отобразить два агрегатных и два группирующих запроса."""
     try:
         minimum = int(request.GET.get("minimum", "0"))
         if not 0 <= minimum < 2 ** 63:
@@ -100,10 +87,46 @@ def statistics(request):
         return render(request, "questions/statistics.html", {
             "error": "Минимум должен быть неотрицательным целым числом.",
         }, status=400)
-    return render(request, "questions/statistics.html", {
-        "question_summary": fetch_one("question_summary"),
-        "answer_summary": fetch_one("answer_summary"),
-        "category_statistics": fetch_all("category_statistics", (minimum,)),
-        "author_statistics": fetch_all("author_statistics"),
-        "users": fetch_all("user_list"), "minimum": minimum,
-    })
+    return render(request, "questions/statistics.html",
+                  statistics_context(minimum))
+
+
+def withdrawn_questions(request):
+    return list_response(request, Question.objects.cancelled(),
+                         "Отозванные вопросы", "questions/question_list.html")
+
+
+@require_http_methods(["GET", "POST"])
+def question_create(request):
+    form = QuestionForm(request.POST if request.method == "POST" else None)
+    return form_response(request, form, "Задать вопрос")
+
+
+@require_http_methods(["GET", "POST"])
+def question_edit(request, question_id):
+    if question_id >= 2 ** 63:
+        raise Http404
+    question = get_object_or_404(Question, pk=question_id)
+    form = QuestionForm(request.POST if request.method == "POST" else None,
+                        instance=question)
+    return form_response(request, form, "Редактировать вопрос")
+
+
+@require_POST
+def question_cancel(request, question_id):
+    if question_id >= 2 ** 63:
+        raise Http404
+    question = get_object_or_404(Question, pk=question_id)
+    question.cancel()
+    return redirect(question)
+
+
+@require_POST
+def question_close(request, question_id):
+    if question_id >= 2 ** 63:
+        raise Http404
+    question = get_object_or_404(Question, pk=question_id)
+    Question.objects.filter(
+        pk=question.pk, status=Question.Status.OPEN).update(
+        status=Question.Status.CLOSED)
+    return redirect(question)

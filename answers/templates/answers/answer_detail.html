@@ -5,9 +5,10 @@
   <article class="card mt-4"><div class="card-body p-4">
     <h1 class="h2">Ответ №{{ answer.id }}</h1>
     <p class="lead preserve-lines">{{ answer.text }}</p>
-    <p>Автор: {{ answer.author_name }}</p>
+    <p>Автор: {{ answer.author.name }}</p>
     <p>Дата: {{ answer.created_on }}</p>
-    <p>К вопросу: <a href="{% url 'questions:detail' answer.question_id %}">{{ answer.question_text }}</a></p>
-    <p class="text-secondary mb-0">Категория: {{ answer.category_name }}</p>
+    <p>К вопросу: <a href="{% url 'questions:detail' answer.question_id %}">{{ answer.question.text }}</a></p>
+    <p class="text-secondary mb-0">Категория: {{ answer.question.category.name }}</p>
   </div></article>
+  {% if answer.question.status == "open" %}<a class="btn btn-outline-primary mt-3" href="{% url 'answers:edit' answer.pk %}">Редактировать ответ</a>{% endif %}
 {% endblock %}

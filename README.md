@@ -2,259 +2,222 @@
 
 Индивидуальный проект №245 по дисциплине «Технологии разработки приложений
 на базе фреймворков». Коржов Сергей Сергеевич, ЭФБО-13-24.
-Текущий этап — ПР7: Django-шаблоны и самостоятельный SQL-слой на SQLite.
+Текущий этап — ПР11: Django ORM, административная панель и веб-формы.
 
 ## Запуск (PowerShell, из корня проекта)
 
-Python 3.11+, Django 5.2, Bootstrap 5.3.3, pytest, flake8.
-`sqlite3` входит в стандартную библиотеку Python.
+Python 3.11+, Django 5.2. Зависимости находятся в requirements.txt.
 
 ```powershell
-# Только если виртуального окружения ещё нет:
+# Если окружение ещё не создано:
 py -3.11 -m venv .venv
-
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe manage.py migrate
-.\.venv\Scripts\python.exe -m db.import_json
+.\.venv\Scripts\python.exe manage.py import_legacy
 .\.venv\Scripts\python.exe manage.py check
 .\.venv\Scripts\python.exe manage.py runserver
 ```
 
-Открыть <http://127.0.0.1:8000/>. Остановка — `Ctrl+C`.
-Если порт занят ранее запущенным сервером, остановить его в его терминале
-или указать другой порт: `python manage.py runserver 8007`.
-Для загрузки Bootstrap через CDN нужен интернет.
+Сайт: <http://127.0.0.1:8000/>. При занятом порте можно указать
+`python manage.py runserver 8011`. Остановка: Ctrl+C.
+Bootstrap 5.3.3 подключён через CDN; для его загрузки нужен интернет.
 
-В проекте **две разные базы**:
+## Данные и этапы проекта
 
-- `db.sqlite3` — служебные таблицы Django; создаются `manage.py migrate`,
-  файл не включён в Git.
-- `data/queryflow.sqlite` — предметные таблицы ПР7; создаются обычным SQL,
-  включены в сдаваемые материалы. Django ORM для этих таблиц не используется.
+- `db.sqlite3` — текущая база Django: служебные таблицы и четыре модели
+  предметной области; создаётся миграциями и не включается в Git.
+- `data/queryflow.sqlite` — сохранённая SQLite-база ПР7, источник импорта.
+  SQL, модуль db/ и JSON сохранены для демонстрации предыдущих работ.
+- `models/`, storage.py, main.py — прежнее консольное приложение с JSON.
+  Оно работает независимо от новой веб-части.
 
-## Реализованные страницы и сценарии
+`import_legacy` читает источник только для чтения, переносит данные одной
+транзакцией, сохраняет ID и связи. Повторный запуск пропускает существующие
+ID, поэтому изменения, сделанные в ORM, не перезаписываются. При ошибке
+импорт откатывается целиком. Для переноса в уже заполненную посторонними
+данными базу сначала нужно разрешить конфликты ID; команда предназначена
+для первоначального переноса собственной базы ПР7.
 
-| URL | Представление | Сценарий |
+Участники `participants.User` — авторы вопросов и ответов. Это отдельная
+предметная модель, не учётные записи входа Django. ForeignKey использует
+PROTECT: связанные категории, участников и вопросы нельзя удалить, пока
+на них ссылаются другие записи.
+
+## Страницы
+
+| URL | Назначение |
+| --- | --- |
+| `/` | Главная |
+| `/questions/` | Вопросы, фильтры, сортировка, пагинация |
+| `/questions/open/` | Открытые вопросы |
+| `/questions/unanswered/` | Открытые вопросы без ответов |
+| `/questions/withdrawn/` | Отозванные вопросы |
+| `/questions/search/` | Поиск |
+| `/questions/statistics/` | Итоги, распределение по категориям и участникам |
+| `/questions/<id>/` | Вопрос и ответы |
+| `/questions/create/` | Создание вопроса |
+| `/questions/<id>/edit/` | Редактирование вопроса |
+| `/questions/<id>/cancel/` | Отзыв, только POST |
+| `/questions/<id>/close/` | Закрытие открытого вопроса, только POST |
+| `/answers/`, `/answers/<id>/` | Список и карточка ответа |
+| `/answers/for/<question_id>/create/` | Ответ на выбранный вопрос |
+| `/answers/<id>/edit/` | Редактирование ответа |
+| `/categories/`, `/categories/active/` | Все и активные категории |
+| `/categories/<id>/` | Старый адрес категории |
+| `/categories/topic/<slug>/` | Основной адрес, get_absolute_url() |
+| `/categories/<id>/edit/` | Изображение и свойства категории, для сотрудника |
+| `/admin/` | Администрирование всех четырёх моделей |
+
+Старые маршруты ПР5–ПР7 сохранены. Несуществующие объекты дают 404.
+При DEBUG=True Django показывает техническую 404, при DEBUG=False — наш
+шаблон. Для локальной проверки собственной 404 со статикой:
+`$env:DJANGO_DEBUG="False"`, затем `python manage.py runserver --insecure`.
+После проверки: `Remove-Item Env:DJANGO_DEBUG` и перезапуск сервера.
+
+## Поиск и ORM (ПР9)
+
+GET-параметры: q (текст), related (имя категории или автора), category,
+author, date (точная дата), since (не раньше), status, sort, page.
+Фильтры объединяются AND; поиск related использует OR по двум связанным
+полям через Q. Значения sort разрешены словарём SORTS: newest, oldest,
+category, author. Неизвестные значения дают 400. В SQLite icontains
+игнорирует регистр ASCII, но учитывает регистр кириллицы; `%` и `_`
+обрабатываются как буквальные символы пользовательского поиска.
+
+Пагинация — Paginator, по 10 записей. Отрицательный или нечисловой page
+даёт 400, положительный номер за пределами диапазона — последнюю страницу.
+Тег querystring сохраняет фильтры и сортировку. Повторная отправка формы
+фильтрации начинает выдачу с первой страницы.
+
+В проекте больше 15 самостоятельных ORM-выражений, используемых интерфейсом:
+
+| № | Выражение / сценарий | Где |
 | --- | --- | --- |
-| `/` | `homepage.views.index` | Главная и навигация |
-| `/questions/` | `questions.views.questions` | Все вопросы с категориями, авторами и статусами |
-| `/questions/open/` | `questions.views.open_questions` | Незакрытые вопросы |
-| `/questions/unanswered/` | `questions.views.unanswered_questions` | Открытые вопросы без ответов |
-| `/questions/search/` | `questions.views.search` | Поиск по тексту, категории и начальной дате |
-| `/questions/statistics/` | `questions.views.statistics` | Итоги, вопросы по категориям, ответы по участникам |
-| `/questions/<int:question_id>/` | `questions.views.question_detail` | Вопрос и его ответы |
-| `/categories/` | `categories.views.categories` | Все категории |
-| `/categories/active/` | `categories.views.active_categories` | Активные категории |
-| `/categories/<int:category_id>/` | `categories.views.category_detail` | Категория и вопросы этой темы |
-| `/answers/` | `answers.views.answers` | Ответы, связанные вопросы и авторы |
-| `/answers/<int:answer_id>/` | `answers.views.answer_detail` | Карточка ответа |
+| 1 | Category.objects.all(): каталог | categories/views.py |
+| 2 | filter(is_active=True): активные категории | categories/views.py |
+| 3 | get_object_or_404 по PK/slug | categories/views.py |
+| 4 | category.questions.all(): обратная связь | categories/views.py |
+| 5 | Question.objects.all(): общий список | questions/views.py |
+| 6 | active(): открытые вопросы | questions/views.py |
+| 7 | exclude статусов + answers__isnull: без ответов | questions/views.py |
+| 8 | cancelled(): отозванные | questions/views.py |
+| 9 | text__icontains: текстовый поиск | questions/queries.py |
+| 10 | Q по category__name или author__name | questions/queries.py |
+| 11 | category_id + author_id + дата: составной фильтр | questions/queries.py |
+| 12 | order_by датой и PK: устойчивый порядок | questions/queries.py |
+| 13 | order_by category__name: связанное поле | questions/queries.py |
+| 14 | select_related(category, author) + Count: карточка | questions/views.py |
+| 15 | question.answers.all(): ответы выбранного вопроса | questions/views.py |
+| 16 | Answer.objects.all() + F + values: список ответов | questions/queries.py |
+| 17 | Answer.select_related(question__category, author): карточка | answers/views.py |
+| 18 | Question.aggregate с условными Count | questions/queries.py |
+| 19 | Answer.aggregate с Count distinct авторов | questions/queries.py |
+| 20 | Category.annotate(Count) + отбор групп | questions/queries.py |
+| 21 | User.annotate(Count): участники, включая нулевые группы | questions/queries.py |
+| 22 | User.objects.all(): список участников | questions/queries.py |
+| 23 | Paginator: ограничение выборки страницей | questions/views.py |
 
-Все страницы данных используют SQLite. Сохранены старые URL ПР5–ПР6.
-Отсутствующие объекты и неизвестные пути возвращают HTTP 404.
-`/admin/` остаётся служебным маршрутом Django; предметные таблицы в нём
-не зарегистрированы. Создание вопросов/ответов через веб-формы не входит
-в ПР6–ПР7. Новая форма поиска отправляет GET и не изменяет данные.
+Цепочка одного выражения не считается отдельным запросом на каждый метод.
+Две формы получения связанных данных: values()+annotate(F()) для карточек
+списка и select_related() для объектов подробной страницы.
+`python manage.py orm_demo` показывает create/get/save/delete на тестовой
+категории с откатом: после демонстрации лишних записей не остаётся.
 
-Примеры:
+## Админка и развитие модели (ПР10)
 
-- `/questions/search/?q=Python&category=1&since=2026-09-19`;
-- `/questions/search/?q=&page=2` — следующая страница выдачи (по 10 вопросов);
-- `/questions/statistics/?minimum=1` — категории хотя бы с одним вопросом.
+Для новой установки: `python manage.py createsuperuser`.
+В подготовленном локальном окружении создан `queryflow_admin`; данные
+входа находятся в игнорируемом файле `.env.local`. Пароль не включается в Git.
 
-Поиск выполняется по буквальной подстроке через `instr(lower(...), lower(?))`.
-Регистр латиницы не учитывается, кириллицы — учитывается (поведение SQLite).
-Дата проверяется как `YYYY-MM-DD`; условия объединены `AND`. Неверные
-параметры дают понятное сообщение и 400; пустая выдача — сообщение и 200.
-Сортировка по дате и ID делает разбиение на страницы устойчивым.
+В admin.py настроены list_display, list_filter, search_fields, ordering,
+list_per_page, autocomplete_fields и list_select_related. Inline-вопросы
+доступны в карточках категорий и участников, inline-ответы — у вопроса.
+Приложения, модели и поля имеют русские подписи.
 
-## Структура проекта
+Миграция questions/0002 сначала добавляет status, затем через RunPython
+переносит is_closed=False → open, True → closed и удаляет старое поле.
+Используются исторические модели apps.get_model(). Обратная миграция
+сводит withdrawn к False: старый формат не имел отдельного отзыва.
+QuestionQuerySet: active(), completed(), cancelled(), for_date().
+Статистика отдельно учитывает OPEN, CLOSED, WITHDRAWN.
 
-```text
-queryflow/                 # settings.py, корневой urls.py, ASGI/WSGI
-homepage/                  # главная страница и handler404
-    templates/homepage/    # index.html
-    static/homepage/       # css/style.css, js/main.js, img/logo.svg
-questions/                 # вопросы, поиск, статистика
-    templates/questions/   # страницы и includes карточки/статуса
-categories/                # категории и их вопросы
-answers/                   # ответы со связанными данными
-    templates/answers/     # страницы и includes/answer_card.html
-templates/                 # base.html, 404.html, includes/navigation.html
-db/
-    database.py            # get_connection(), initialize_database()
-    import_json.py         # импорт четырёх JSON-файлов одной транзакцией
-    queries.py             # исполнение именованных запросов из SQL-файла
-sql/
-    schema.sql             # таблицы, ограничения и индексы
-    queries.sql            # 18 запросов с назначением и параметрами
-data/
-    queryflow.sqlite       # предметная база ПР7
-    *.json                 # исходные данные ПР3–ПР6, сохранены
-models/                    # обычные Python-классы ПР3
-storage.py                 # прежняя загрузка/сохранение JSON
-main.py                    # прежняя консольная версия
-manage.py                  # команды Django
-tests/                     # предметные, шаблонные, HTTP- и SQL-проверки
-docs/                      # отчёты по практическим
-шпаргалка_пр6.md
-шпаргалка_пр7.md
-```
+Адаптация проверки доступности: вопросы, ожидающие ответа на дату,
+должны быть открыты и не иметь ответов. Закрытые и отозванные исключаются.
+ПР11 дополняет правило проверкой одинакового открытого вопроса у автора.
+Бронирования, помещения и их календарные ограничения в QueryFlow не вводятся.
 
-## Результат ПР6: шаблоны
+Category.slug уникален; старые записи получают category-<id>. Новым
+категориям по умолчанию назначается случайный уникальный slug; в админке
+его можно заполнить по имени. GeneratedField Question.text_length вычисляет
+Length(text) в SQLite, db_persist=True. После изменения исходного текста
+для актуализации Python-объекта нужен refresh_from_db(). Общие название
+сайта и количество активных категорий передаёт контекстный процессор.
 
-HTML вынесен из Python, функция `page()` удалена. Представления вызывают
-`render(request, template, context)`. `templates/base.html` задаёт общий
-каркас и блоки `title`, `content`; дочерние страницы используют `extends`.
-Навигация, карточки и статусы подключаются через `include ... with ... only`.
-Списки используют `for/empty`, состояния — `if/elif/else`.
-Есть фильтры `length`, `default`, `truncatechars`, `stringformat`.
-Ссылки строятся через `{% url %}` и `app_name` приложений.
+При DEBUG=True с локального IP доступна свёрнутая Django Debug Toolbar.
+Откройте её справа, затем SQL. Проверено: анонимный список без фильтров
+выполняет 5 запросов — COUNT, страница карточек, общий счётчик и варианты
+двух списков формы. Число запросов не растёт с количеством карточек.
+Авторизация и дополнительные фильтры могут добавлять обоснованные запросы.
+В карточке вопроса select_related загружает автора и категорию одним JOIN.
 
-`DIRS=[BASE_DIR / "templates"]` находит общие шаблоны,
-`APP_DIRS=True` — шаблоны зарегистрированных приложений.
-DTL автоматически экранирует текст. Собственные CSS, SVG-изображение и JS
-подключены через `{% load static %}` / `{% static %}`; JS показывает год
-в подвале. Bootstrap сохранён для адаптивной сетки и компонентов.
+## Веб-формы (ПР11)
 
-Самостоятельное состояние ПР6 зафиксировано коммитом `c921528`
-(`PR6: migrate pages to Django templates`). На этом этапе view читали JSON
-и передавали объекты ПР3. В ПР7 те же шаблоны адаптированы к `sqlite3.Row`:
-например, `question.author.name` заменено на `question.author_name`.
+QuestionFilterForm — обычная Form; QuestionForm, AnswerForm, CategoryForm —
+ModelForm. Обработка: привязка данных, is_valid(), cleaned_data, save(),
+redirect (Post/Redirect/Get). Ошибки возвращаются с исходными значениями.
+BootstrapFormMixin оформляет виджеты, общий шаблон показывает ошибки полей,
+общие ошибки и подсказки. Все изменения выполняются через POST с CSRF;
+GET на cancel/close возвращает 405, POST без токена — 403.
 
-## Результат ПР7: схема и ключи
+Правила предметной области:
 
-| Таблица | Поля и типы | Связи |
-| --- | --- | --- |
-| `categories` | `id INTEGER PK`, `name TEXT`, `is_active INTEGER` | Категории вопросов |
-| `users` | `id INTEGER PK`, `name TEXT`, `role TEXT` | Авторы вопросов и ответов |
-| `questions` | `id INTEGER PK`, `text TEXT`, `category_id INTEGER`, `author_id INTEGER`, `is_closed INTEGER`, `created_on TEXT` | FK на `categories.id`, `users.id` |
-| `answers` | `id INTEGER PK`, `text TEXT`, `question_id INTEGER`, `author_id INTEGER`, `created_on TEXT` | FK на `questions.id`, `users.id` |
+- вопрос содержит минимум 10 символов; автор и категория существуют;
+- одинаковый открытый вопрос одного автора в одной категории не создаётся
+  повторно: exists()+exclude(pk=...) в форме и условный UniqueConstraint в БД;
+- редактируемая запись не конфликтует сама с собой; отзыв освобождает
+  возможность повторной публикации, сохраняя старую запись и ответы;
+- дата публикации может быть в прошлом, но не в будущем; нельзя перенести
+  дату вопроса позже имеющегося ответа или поставить ответ раньше вопроса;
+- новые вопросы не создаются в архивной категории; существующий вопрос
+  может сохранить прежнюю архивную категорию;
+- ответы создаются и редактируются только у открытого вопроса;
+- дата и существование связей проверяются формой и моделью; конфликт
+  сохранения даёт ошибку формы, недоступность БД при сохранении — 503.
 
-Даты хранятся в ISO-формате; логические признаки — 0/1.
-`NOT NULL`, `CHECK`, первичные и внешние ключи ограничивают некорректные данные.
-`ON DELETE RESTRICT` запрещает удалять родителя связанной записи.
-Каждое подключение включает `PRAGMA foreign_keys=ON` и `sqlite3.Row`.
-Индексы добавлены на внешние ключи. Пути вычисляются от файлов модулей,
-поэтому доступ к базе не зависит от рабочей папки.
+Это локальный учебный интерфейс: автора выбирают из списка участников.
+Личный кабинет и проверка владельца вопроса не входят в ПР9–ПР11.
+Изменение общих категорий и загрузка их изображений доступны сотруднику.
 
-## Создание и импорт
+Category.image — ImageField с проверкой содержимого Pillow и лимитом 5 МБ.
+Форма передаёт request.FILES, enctype=multipart/form-data. Файлы находятся
+в media/categories/, в БД — относительный путь; MEDIA_URL формирует адрес.
+При DEBUG=True Django раздаёт media локально. Изображение можно загрузить,
+заменить или очистить через страницу категории и Django Admin. Если файла
+нет, отображается текстовая заглушка. При замене старый файл автоматически
+не удаляется. media/ не включается в Git.
 
-```powershell
-# Только схема; повторный запуск не удаляет данные:
-.\.venv\Scripts\python.exe -m db.database
-# Схема + перенос данных:
-.\.venv\Scripts\python.exe -X utf8 -m db.import_json
-```
-
-Сначала читаются и проверяются все JSON-файлы. Импорт выполняется в порядке
-`categories → users → questions → answers`, чтобы родители существовали
-до дочерних записей. `executemany()` передаёт значения через `?`.
-Все вставки/обновления объединены в транзакцию: успех — commit, ошибка — rollback.
-Повторный запуск обновляет совпавшие ID через `ON CONFLICT(id) DO UPDATE`,
-не создаёт дубликаты и **не удаляет** записи SQLite, которых нет в JSON.
-Противоречивые ссылки и повторные ID в исходном файле обнаруживаются.
-
-После исходного импорта: 6 категорий, 4 пользователя, 2 вопроса, 1 ответ.
-JSON и SQLite теперь независимы: консоль записывает JSON; чтобы перенести
-его новые значения в сайт, нужно явно повторить импорт. Автоматической
-двусторонней синхронизации нет. Это позволяет сохранить прежний код ПР3.
-
-## Запросы и их использование
-
-Все 18 запросов хранятся в `sql/queries.sql`. Метка `-- name:` позволяет
-`db/queries.py` читать и исполнять именно этот SQL без копирования во view.
-Имена запросов выбираются кодом, значения передаются отдельно параметрами.
-
-| № | Запрос | Использование |
-| --- | --- | --- |
-| 1 | `category_list` — SELECT списка | Категории и форма поиска |
-| 2 | `user_list` — SELECT списка | Участники на странице статистики |
-| 3 | `active_categories` — WHERE | Активные категории |
-| 4 | `open_questions` — WHERE | Открытые вопросы |
-| 5 | `question_list` — JOIN | Вопросы, категории, авторы |
-| 6 | `answer_list` — JOIN | Ответы, вопросы, категории, авторы |
-| 7 | `question_summary` — COUNT/SUM | Число всех, открытых и закрытых вопросов |
-| 8 | `answer_summary` — COUNT/DISTINCT | Число ответов и ответивших авторов |
-| 9 | `category_statistics` — LEFT JOIN/GROUP BY/HAVING | Вопросы по категориям с порогом |
-| 10 | `author_statistics` — LEFT JOIN/GROUP BY | Ответы по участникам, включая ноль |
-| 11 | `question_search` — WHERE/LIMIT/OFFSET | Поиск и постраничный вывод |
-| 12 | `search_count` — COUNT/WHERE | Общее количество результатов поиска |
-| 13 | `question_detail` | Карточка вопроса |
-| 14 | `question_answers` | Ответы выбранного вопроса |
-| 15 | `category_detail` | Карточка категории |
-| 16 | `category_questions` | Вопросы выбранной категории |
-| 17 | `answer_detail` | Карточка ответа |
-| 18 | `unanswered_questions` — NOT EXISTS | Открытые вопросы без ответов |
-
-Таким образом, минимум «10 запросов, по два каждого из пяти видов» выполнен.
-Все запросы используются веб-страницами. `LEFT JOIN` и `COUNT(q.id)`
-сохраняют категории с нулём вопросов; `HAVING` фильтрует уже полученные группы.
-
-Путь запроса: GET-параметры → проверка в `questions.views.search()` →
-`fetch_all('question_search', parameters)` → `connection.execute(SQL, parameters)`
-→ `list[sqlite3.Row]` → словарь контекста → Django-шаблон → HTML.
-Соединения закрываются через `contextlib.closing`, в том числе при исключениях.
-
-## Проверка SQL вручную
-
-Локально установлен SQLite CLI в `.venv/tools/sqlite/sqlite3.exe`:
-
-```powershell
-.\.venv\tools\sqlite\sqlite3.exe data/queryflow.sqlite
-```
-
-Внутри CLI можно выполнить `.tables`, `.schema`, запрос из `queries.sql`,
-например `SELECT COUNT(*) FROM questions;`, и выйти командой `.quit`.
-Заполнители `?` требуют значений (команда CLI `.parameter set ?1 1`).
-CLI не входит в Git; на другом компьютере можно установить его
-с [официального сайта SQLite](https://sqlite.org/download.html).
-Для просмотра таблиц в VS Code используется SQLite Viewer.
-
-Без CLI запросы можно выполнять через модуль проекта:
-
-```powershell
-.\.venv\Scripts\python.exe -X utf8 -c "from db.queries import fetch_all; print([dict(r) for r in fetch_all('category_statistics', (0,))])"
-```
-
-## Проверки и 404
+## Проверки и материалы для защиты
 
 ```powershell
 .\.venv\Scripts\python.exe manage.py check
-.\.venv\Scripts\python.exe -m pytest -v
-.\.venv\Scripts\python.exe -m flake8 .
-.\.venv\Scripts\python.exe main.py
+.\.venv\Scripts\python.exe manage.py makemigrations --check
+.\.venv\Scripts\python.exe manage.py showmigrations
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m flake8
 ```
 
-ПР6: 55 тестов. ПР7: **84 теста**, включая 23 неизменённых теста ПР3;
-`check` и flake8 — без замечаний. Проверены все 18 запросов через SQLite CLI,
-сравнение с Python, целостность БД, импорт/повторный импорт/откат,
-JOIN, нулевые группы, HAVING, безопасные параметры, поиск, пагинация,
-пустые результаты, экранирование и отсутствие записи при GET.
-В браузере проверены страницы, формы поиска и статистики, переходы,
-404 и ширина 390 px.
+Тесты используют отдельную БД и временные файлы. Проверяются старые
+консольные сценарии и SQL ПР7, ORM, перенос и откат, миграция статуса,
+админка, поиск, сортировка, пагинация, число запросов, формы, CSRF,
+ошибки сохранения и изображения. Пароли тестовых пользователей применяются
+только в изолированной тестовой БД.
 
-По умолчанию `DEBUG=True`. Для демонстрации общей страницы 404:
+В корне: шпаргалка_пр9.md (30 пунктов), шпаргалка_пр10.md (30 пунктов),
+шпаргалка_пр11.md (20 пунктов). Отчёты DOCX находятся в родительском каталоге
+рядом с отчётами ПР6–ПР7; сохранены их пять разделов и оформление.
+Контрольные точки: ПР9 — ca17483, ПР10 — 147eea1; последующие коммиты
+добавляют материалы для защиты и формы ПР11. Изменения локальные, без push.
 
-```powershell
-$env:DJANGO_DEBUG = "False"
-.\.venv\Scripts\python.exe manage.py runserver --insecure
-# После остановки:
-Remove-Item Env:DJANGO_DEBUG
-```
-
-`--insecure` здесь нужен только для локальной раздачи CSS при `DEBUG=False`.
-Явный ответ отсутствующего объекта имеет 404 в обоих режимах.
-Настройки предназначены для локальной учебной работы.
-
-## Материалы для защиты
-
-- [Шпаргалка ПР6: 25 показателей](шпаргалка_пр6.md).
-- [Шпаргалка ПР7: 25 показателей](шпаргалка_пр7.md).
-- Отчёт ПР6: `ОТЧЁТ_ПР6_Коржов_С.С_ЭФБО-13-24.docx`.
-- Отчёт ПР7: `ОТЧЁТ_ПР7_Коржов_С.С_ЭФБО-13-24.docx`.
-- [Репозиторий](https://github.com/pr1azzz/queryflow).
-
-Готовые отчёты ПР6 и ПР7 находятся в общей папке рядом с каталогом `queryflow`.
-
-ПР6 и ПР7 зафиксированы отдельными локальными коммитами `PR6:` и `PR7:`.
-Публикация на GitHub — `git push`. Следующий этап — Django ORM и формы.
+Документация: [миграции Django](https://docs.djangoproject.com/en/5.2/topics/migrations/),
+[ограничения моделей](https://docs.djangoproject.com/en/5.2/ref/models/constraints/),
+[Debug Toolbar](https://django-debug-toolbar.readthedocs.io/en/stable/installation.html).
