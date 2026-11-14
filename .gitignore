@@ -34,7 +34,7 @@ desktop.ini
 .coverage
 htmlcov/
 
-# Служебная база Django (данные предметной области остаются в JSON)
+# Локальная ORM-база Django; исходные данные для переноса сохранены в ПР7
 db.sqlite3
 .work_pr9_11/
 media/

@@ -20,6 +20,7 @@ def test_legacy_import_preserves_links_and_local_edits(web):
     assert q.author.name == "Автор"
     assert q.answers.get().question_id == q.pk
     q.text = "Отредактировано в ORM"
+    q.status = Question.Status.CLOSED
     q.save()
     call_command("import_legacy", source=database.DB_PATH)
     q.refresh_from_db()
@@ -79,3 +80,19 @@ def test_crud_demo_leaves_no_records(web):
     call_command("orm_demo", stdout=output)
     assert "True" in output.getvalue()
     assert Category.objects.count() == before
+
+
+def test_orm_import_rolls_back_invalid_new_links(web):
+    from contextlib import closing
+    from django.core.management.base import CommandError
+
+    with closing(database.get_connection()) as source, source:
+        source.execute("PRAGMA foreign_keys=OFF")
+        source.execute("INSERT INTO categories(id,name) VALUES(77,'Rollback')")
+        source.execute(
+            "INSERT INTO answers(id,text,question_id,author_id,created_on) "
+            "VALUES(77,'Invalid link',999,1,'2026-09-19')")
+    with pytest.raises(CommandError):
+        call_command("import_legacy", source=database.DB_PATH)
+    assert not Category.objects.filter(pk=77).exists()
+    assert not Answer.objects.filter(pk=77).exists()

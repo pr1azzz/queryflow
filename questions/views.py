@@ -5,10 +5,11 @@ from django.db.models import Count
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 
-from categories.models import Category
-from participants.models import User
 from questions.models import Question
-from questions.parameters import parse_parameters
+from questions.forms import QuestionFilterForm, QuestionForm
+from queryflow.form_views import form_response
+from django.shortcuts import redirect
+from django.views.decorators.http import require_POST, require_http_methods
 from questions.queries import (
     answer_rows, filtered_questions, question_rows, statistics_context,
 )
@@ -17,17 +18,18 @@ PAGE_SIZE = 10
 
 
 def list_response(request, queryset, heading, template, submitted=True):
+    form = QuestionFilterForm(request.GET)
     context = {
-        "heading": heading, "submitted": submitted, "cards": [],
-        "categories": Category.objects.all(), "authors": User.objects.all(),
+        "heading": heading, "submitted": submitted, "cards": [], "form": form,
     }
-    try:
-        data = parse_parameters(request.GET)
-    except (ValueError, TypeError):
+    if not form.is_valid():
         context["error"] = "Проверьте параметры поиска, дату и номер страницы."
         return render(request, template, context, status=400)
+    data = form.cleaned_data.copy()
+    for key in ("category", "author"):
+        data[key] = data[key].pk if data.get(key) else None
     rows = question_rows(filtered_questions(data, queryset))
-    page = Paginator(rows, PAGE_SIZE).get_page(data["page"])
+    page = Paginator(rows, PAGE_SIZE).get_page(data.get("page") or 1)
     context.update({
         "cards": [{"question": row, "answers_count": row["answers_count"]}
                   for row in page],
@@ -92,3 +94,39 @@ def statistics(request):
 def withdrawn_questions(request):
     return list_response(request, Question.objects.cancelled(),
                          "Отозванные вопросы", "questions/question_list.html")
+
+
+@require_http_methods(["GET", "POST"])
+def question_create(request):
+    form = QuestionForm(request.POST if request.method == "POST" else None)
+    return form_response(request, form, "Задать вопрос")
+
+
+@require_http_methods(["GET", "POST"])
+def question_edit(request, question_id):
+    if question_id >= 2 ** 63:
+        raise Http404
+    question = get_object_or_404(Question, pk=question_id)
+    form = QuestionForm(request.POST if request.method == "POST" else None,
+                        instance=question)
+    return form_response(request, form, "Редактировать вопрос")
+
+
+@require_POST
+def question_cancel(request, question_id):
+    if question_id >= 2 ** 63:
+        raise Http404
+    question = get_object_or_404(Question, pk=question_id)
+    question.cancel()
+    return redirect(question)
+
+
+@require_POST
+def question_close(request, question_id):
+    if question_id >= 2 ** 63:
+        raise Http404
+    question = get_object_or_404(Question, pk=question_id)
+    Question.objects.filter(
+        pk=question.pk, status=Question.Status.OPEN).update(
+        status=Question.Status.CLOSED)
+    return redirect(question)

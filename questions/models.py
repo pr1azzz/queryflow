@@ -1,7 +1,10 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.functions import Length
 from django.urls import reverse
 from django.utils import timezone
+
+from queryflow.validators import not_future
 
 
 class QuestionQuerySet(models.QuerySet):
@@ -39,7 +42,7 @@ class Question(models.Model):
     objects = QuestionQuerySet.as_manager()
 
     created_on = models.DateField(
-        "Дата публикации", default=timezone.localdate)
+        "Дата публикации", default=timezone.localdate, validators=[not_future])
 
     class Meta:
         ordering = ["-created_on", "-pk"]
@@ -47,7 +50,10 @@ class Question(models.Model):
         verbose_name_plural = "Вопросы"
         constraints = [models.CheckConstraint(
             condition=models.Q(status__in=["open", "closed", "withdrawn"]),
-            name="question_valid_status")]
+            name="question_valid_status"), models.UniqueConstraint(
+                fields=["text", "category", "author"],
+                condition=models.Q(status="open"),
+                name="unique_open_question_per_author")]
 
     def __str__(self):
         return self.text[:80]
@@ -62,3 +68,14 @@ class Question(models.Model):
     def cancel(self):
         self.status = self.Status.WITHDRAWN
         self.save(update_fields=["status"])
+
+    def clean(self):
+        super().clean()
+        if self.category_id and not self.category.is_active:
+            previous = type(self).objects.filter(pk=self.pk).first()
+            if previous is None or previous.category_id != self.category_id:
+                raise ValidationError({"category": "Категория в архиве."})
+        if self.pk and self.created_on:
+            if self.answers.filter(created_on__lt=self.created_on).exists():
+                raise ValidationError({
+                    "created_on": "Дата вопроса не может быть позже ответа."})

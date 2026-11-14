@@ -6,7 +6,8 @@ from pathlib import Path
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.core.exceptions import ValidationError
 
 from answers.models import Answer
 from categories.models import Category
@@ -44,8 +45,15 @@ class Command(BaseCommand):
                                              else Question.Status.OPEN)
                         obj, is_new = model.objects.get_or_create(
                             pk=pk, defaults=row)
-                        obj.full_clean()
+                        if is_new:
+                            # Исторический ответ может относиться к уже
+                            # закрытому вопросу. Проверяем структуру данных,
+                            # а не правила новой публикации из Model.clean().
+                            obj.clean_fields()
+                            obj.validate_unique()
+                            obj.validate_constraints()
                         created += is_new
                     self.stdout.write(f"{table}: добавлено {created}")
-        except (sqlite3.Error, ValueError) as exc:
+        except (sqlite3.Error, ValueError, IntegrityError,
+                ValidationError) as exc:
             raise CommandError(str(exc)) from exc

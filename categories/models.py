@@ -3,6 +3,8 @@ from uuid import uuid4
 from django.db import models
 from django.urls import reverse
 
+from queryflow.validators import validate_image_size
+
 
 def category_slug():
     return uuid4().hex
@@ -11,6 +13,8 @@ def category_slug():
 class Category(models.Model):
     name = models.CharField("Название", max_length=120)
     slug = models.SlugField("Адрес", unique=True, default=category_slug)
+    image = models.ImageField("Изображение", upload_to="categories/%Y/%m/",
+                              blank=True, validators=[validate_image_size])
     is_active = models.BooleanField("Активна", default=True)
 
     class Meta:
