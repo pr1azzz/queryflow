@@ -1,31 +1,28 @@
-"""Категории и их вопросы из SQLite."""
+from django.http import Http404
+from django.shortcuts import get_object_or_404, render
 
-from django.shortcuts import render
-
-from db.queries import fetch_all, fetch_one
+from categories.models import Category
+from questions.queries import question_rows
 
 
 def categories(request):
     return render(request, "categories/category_list.html", {
-        "categories": fetch_all("category_list"), "heading": "Категории",
+        "categories": Category.objects.all(), "heading": "Категории",
     })
 
 
 def active_categories(request):
     return render(request, "categories/category_list.html", {
-        "categories": fetch_all("active_categories"),
+        "categories": Category.objects.filter(is_active=True),
         "heading": "Активные категории",
     })
 
 
 def category_detail(request, category_id):
-    category = (fetch_one("category_detail", (category_id,))
-                if category_id < 2 ** 63 else None)
-    if category is None:
-        return render(request, "404.html", {
-            "message": "Категория не найдена",
-        }, status=404)
+    if category_id >= 2 ** 63:
+        raise Http404("Категория не найдена")
+    category = get_object_or_404(Category, pk=category_id)
     return render(request, "categories/category_detail.html", {
-        "category": category,
-        "questions": fetch_all("category_questions", (category_id,)),
+        "category": category, "questions": question_rows(
+            category.questions.all()),
     })

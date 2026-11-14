@@ -20,7 +20,7 @@ from models.users import User  # noqa: E402
 
 
 @pytest.fixture
-def web(tmp_path, monkeypatch):
+def web(tmp_path, monkeypatch, db):
     """Каждый тест читает и пишет только во временный каталог."""
     monkeypatch.setattr(storage, "DATA_DIR", tmp_path)
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "queryflow.sqlite")
@@ -35,5 +35,8 @@ def web(tmp_path, monkeypatch):
     storage.save_questions([question])
     storage.save_answers([answer])
     import_data(tmp_path)
-    with override_settings(DEBUG=False, ALLOWED_HOSTS=["testserver"]):
+    from django.core.management import call_command
+    call_command("import_legacy", source=database.DB_PATH)
+    with override_settings(DEBUG=False, ALLOWED_HOSTS=["testserver"],
+                           INTERNAL_IPS=[]):
         yield Client()

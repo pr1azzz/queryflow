@@ -258,3 +258,31 @@ Remove-Item Env:DJANGO_DEBUG
 
 ПР6 и ПР7 зафиксированы отдельными локальными коммитами `PR6:` и `PR7:`.
 Публикация на GitHub — `git push`. Следующий этап — Django ORM и формы.
+
+
+## ПР9: переход на Django ORM
+
+Веб-часть использует модели Category, participants.User, Question и Answer
+в db.sqlite3. Участники предметной области отделены от учётных записей Django.
+База data/queryflow.sqlite, SQL и JSON ПР7 сохранены как учебный этап;
+изменения в них автоматически в веб-интерфейс больше не попадают.
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe manage.py migrate
+.\.venv\Scripts\python.exe manage.py import_legacy
+.\.venv\Scripts\python.exe manage.py orm_demo
+.\.venv\Scripts\python.exe manage.py runserver
+```
+
+Импорт читает источник только для чтения, переносит записи атомарно, сохраняет
+ID и связи, пропускает уже существующие ID (не перезаписывает изменения ORM).
+При конфликте идентификаторов следует использовать чистую базу назначения.
+`orm_demo` демонстрирует create/get/save/delete с откатом транзакции.
+Запросы находятся в questions/queries.py и views.py приложений. Поиск по тексту,
+категории, автору, дате, именам связанных объектов; сортировки по разрешённому
+словарю, Paginator и сохранение GET-параметров. В SQLite icontains не меняет
+регистр кириллицы. При DEBUG=True доступна локальная Django Debug Toolbar.
+
+Проверки: `python manage.py check`, `python manage.py makemigrations --check`,
+`python -m pytest`, `python -m flake8`.

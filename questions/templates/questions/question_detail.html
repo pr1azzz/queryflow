@@ -5,8 +5,8 @@
   <article class="card question-card my-4"><div class="card-body p-4">
     <p class="text-secondary">Вопрос №{{ question.id }}</p>
     <h1 class="h2 preserve-lines">{{ question.text }}</h1>
-    <p>Категория: <a href="{% url 'categories:detail' question.category_id %}">{{ question.category_name }}</a></p>
-    <p>Автор: {{ question.author_name }}</p>
+    <p>Категория: <a href="{% url 'categories:detail' question.category_id %}">{{ question.category.name }}</a></p>
+    <p>Автор: {{ question.author.name }}</p>
     <p>Дата: {{ question.created_on }}</p>
     {% include 'questions/includes/question_status.html' with question=question answers_count=answers_count only %}
   </div></article>

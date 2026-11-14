@@ -7,6 +7,10 @@ from contextlib import closing
 import pytest
 
 import storage
+from questions.models import Question
+from categories.models import Category
+from answers.models import Answer
+from django.core.management import call_command
 from db import database
 from db.import_json import import_data
 from db.queries import SQL, fetch_all, fetch_one
@@ -144,6 +148,8 @@ def test_filters_and_unanswered_use_database(web):
     with closing(database.get_connection()) as connection, connection:
         connection.execute("UPDATE questions SET is_closed = 1 WHERE id = 1")
         connection.execute("UPDATE categories SET is_active = 0 WHERE id = 1")
+    Question.objects.filter(pk=1).update(is_closed=True)
+    Category.objects.filter(pk=1).update(is_active=False)
     assert "Как работает Python?" not in (
         web.get("/questions/open/").content.decode()
     )
@@ -151,6 +157,8 @@ def test_filters_and_unanswered_use_database(web):
     with closing(database.get_connection()) as connection, connection:
         connection.execute("UPDATE questions SET is_closed = 0 WHERE id = 1")
         connection.execute("DELETE FROM answers")
+    Question.objects.filter(pk=1).update(is_closed=False)
+    Answer.objects.all().delete()
     assert "Как работает Python?" in (
         web.get("/questions/unanswered/").content.decode()
     )
@@ -204,6 +212,7 @@ def test_search_pagination_is_stable_and_keeps_filters(web):
     second = fetch_all("question_search", (*parameters, 10, 10))
     assert [r["id"] for r in first] == list(range(14, 4, -1))
     assert [r["id"] for r in second] == [4, 3, 2]
+    call_command("import_legacy", source=database.DB_PATH)
     response = web.get("/questions/search/", {"q": "Новый", "category": "1"})
     assert "page=2" in response.content.decode()
     assert "category=1" in response.content.decode()

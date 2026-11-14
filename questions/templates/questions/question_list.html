@@ -8,10 +8,12 @@
     <a href="{% url 'questions:unanswered' %}">Без ответов</a>
     <a href="{% url 'questions:search' %}">Найти вопрос</a>
   </nav>
+  {% include "includes/question_filters.html" %}
   <p class="text-secondary">Обсуждения сообщества · {{ cards|length }}</p>
   {% for item in cards %}
     {% include 'questions/includes/question_card.html' with question=item.question answers_count=item.answers_count only %}
   {% empty %}
     <p class="empty-state">Вопросов пока нет.</p>
   {% endfor %}
+  {% include "includes/pagination.html" %}
 {% endblock %}

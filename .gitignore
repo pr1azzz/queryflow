@@ -36,3 +36,5 @@ htmlcov/
 
 # Служебная база Django (данные предметной области остаются в JSON)
 db.sqlite3
+.work_pr9_11/
+media/

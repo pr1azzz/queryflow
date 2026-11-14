@@ -1,21 +1,19 @@
-"""ПР7: JOIN связывает ответ с вопросом, категорией и автором."""
+from django.http import Http404
+from django.shortcuts import get_object_or_404, render
 
-from django.shortcuts import render
-
-from db.queries import fetch_all, fetch_one
+from answers.models import Answer
+from questions.queries import answer_rows
 
 
 def answers(request):
     return render(request, "answers/answer_list.html", {
-        "answers": fetch_all("answer_list"),
+        "answers": answer_rows(),
     })
 
 
 def answer_detail(request, answer_id):
-    answer = (fetch_one("answer_detail", (answer_id,))
-              if answer_id < 2 ** 63 else None)
-    if answer is None:
-        return render(request, "404.html", {
-            "message": "Ответ не найден",
-        }, status=404)
+    if answer_id >= 2 ** 63:
+        raise Http404("Ответ не найден")
+    answer = get_object_or_404(Answer.objects.select_related(
+        "question__category", "author"), pk=answer_id)
     return render(request, "answers/answer_detail.html", {"answer": answer})

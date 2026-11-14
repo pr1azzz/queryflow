@@ -1,0 +1,11 @@
+<form method="get" class="card p-3 mb-3">
+  <label>Текст вопроса <input class="form-control" name="q" value="{{ request.GET.q }}" maxlength="200"></label>
+  <label>Категория <select class="form-select" name="category"><option value="">Все</option>{% for c in categories %}<option value="{{ c.pk }}" {% if request.GET.category == c.pk|stringformat:'s' %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label>
+  <label>Автор <select class="form-select" name="author"><option value="">Все</option>{% for a in authors %}<option value="{{ a.pk }}" {% if request.GET.author == a.pk|stringformat:'s' %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select></label>
+  <label>Название категории или имя автора <input class="form-control" name="related" value="{{ request.GET.related }}"></label>
+  <label>Дата публикации <input class="form-control" type="date" name="date" value="{{ request.GET.date }}"></label>
+  <label>Не раньше <input class="form-control" type="date" name="since" value="{{ request.GET.since }}"></label>
+  <label>Порядок <select class="form-select" name="sort"><option value="newest">Сначала новые</option><option value="oldest" {% if request.GET.sort == 'oldest' %}selected{% endif %}>Сначала старые</option><option value="category" {% if request.GET.sort == 'category' %}selected{% endif %}>По категории</option><option value="author" {% if request.GET.sort == 'author' %}selected{% endif %}>По автору</option></select></label>
+  <button class="btn btn-primary mt-3">Применить</button>
+</form>
+{% if error %}<p class="alert alert-danger">{{ error }}</p>{% endif %}
